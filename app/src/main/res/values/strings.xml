@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">encryptedca</string>
+    <string name="import_title">Импорт mTLS-профиля</string>
+    <string name="import_description">Выберите клиентский контейнер PKCS#12 и сертификат удостоверяющего центра.</string>
+    <string name="display_name_hint">Имя профиля (необязательно)</string>
+    <string name="client_certificate_label">Клиентский сертификат</string>
+    <string name="ca_certificate_label">Сертификат CA</string>
+    <string name="select_p12">Выбрать клиентский .p12</string>
+    <string name="select_ca">Выбрать CA PEM</string>
+    <string name="file_not_selected">Файл не выбран</string>
+    <string name="password_hint">Пароль .p12</string>
+    <string name="import_profile">Импортировать</string>
+    <string name="select_both_files">Выберите .p12 и CA PEM</string>
+    <string name="importing">Импорт…</string>
+    <string name="import_success">Профиль импортирован: %1$s</string>
+    <string name="import_failed">Импорт не выполнен: %1$s</string>
+</resources>

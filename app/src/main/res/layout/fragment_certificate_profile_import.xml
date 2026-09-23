@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="24dp"
+        android:paddingVertical="32dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/import_title"
+            android:textAppearance="@style/TextAppearance.AppCompat.Headline" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/import_description"
+            android:textAppearance="@style/TextAppearance.AppCompat.Body1" />
+
+        <EditText
+            android:id="@+id/display_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:hint="@string/display_name_hint"
+            android:inputType="textCapSentences" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:text="@string/client_certificate_label"
+            android:textAppearance="@style/TextAppearance.AppCompat.Subhead" />
+
+        <Button
+            android:id="@+id/select_p12"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/select_p12" />
+
+        <TextView
+            android:id="@+id/p12_file_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/file_not_selected"
+            android:textAppearance="@style/TextAppearance.AppCompat.Caption" />
+
+        <EditText
+            android:id="@+id/p12_password"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:hint="@string/password_hint"
+            android:imeOptions="actionDone"
+            android:inputType="textPassword" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:text="@string/ca_certificate_label"
+            android:textAppearance="@style/TextAppearance.AppCompat.Subhead" />
+
+        <Button
+            android:id="@+id/select_ca"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/select_ca" />
+
+        <TextView
+            android:id="@+id/ca_file_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/file_not_selected"
+            android:textAppearance="@style/TextAppearance.AppCompat.Caption" />
+
+        <Button
+            android:id="@+id/import_profile"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:text="@string/import_profile" />
+
+        <TextView
+            android:id="@+id/import_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:textAppearance="@style/TextAppearance.AppCompat.Body1" />
+    </LinearLayout>
+</ScrollView>
