@@ -205,6 +205,7 @@ public final class CertificateProfileImportFragment extends Fragment {
     private String errorMessage(CertificateProfileError error) {
         if (error == CertificateProfileError.FILE_UNAVAILABLE) return getString(R.string.error_file_unavailable);
         if (error == CertificateProfileError.PKCS12_PASSWORD_OR_CORRUPT) return getString(R.string.error_p12_invalid);
+        if (error == CertificateProfileError.PKCS12_KEY_UNAVAILABLE) return getString(R.string.error_p12_key_unavailable);
         if (error == CertificateProfileError.CERTIFICATE_INVALID) return getString(R.string.error_certificate_invalid);
         if (error == CertificateProfileError.PROFILE_INCOMPLETE) return getString(R.string.error_profile_incomplete);
         return getString(R.string.error_storage);

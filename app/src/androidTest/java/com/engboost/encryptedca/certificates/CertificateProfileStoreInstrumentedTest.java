@@ -21,11 +21,14 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.security.KeyStore;
 import java.util.Enumeration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 @RunWith(AndroidJUnit4.class)
 public final class CertificateProfileStoreInstrumentedTest {
@@ -196,6 +199,45 @@ public final class CertificateProfileStoreInstrumentedTest {
     }
 
     /**
+     * Проверяет успешный импорт через тот же ContentResolver и ViewModel, что использует экран.
+     *
+     * @throws Exception если тестовые документы недоступны или импорт не завершился
+     */
+    @Test public void importsSelectedDocumentsThroughViewModel() throws Exception {
+        File p12File = copyAssetToCache("client.p12");
+        File caFile = copyAssetToCache("ca.pem");
+        CertificateImportViewModel viewModel = new CertificateImportViewModel(
+                (Application) targetContext.getApplicationContext());
+        CountDownLatch finished = new CountDownLatch(1);
+        AtomicReference<CertificateImportState> result = new AtomicReference<>();
+        Observer<CertificateImportState> observer = state -> {
+            if (state.status == CertificateImportState.Status.SUCCESS
+                    || state.status == CertificateImportState.Status.ERROR) {
+                result.set(state);
+                finished.countDown();
+            }
+        };
+        char[] password = PASSWORD.toCharArray();
+        try {
+            InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+                viewModel.getState().observeForever(observer);
+                viewModel.importProfile("From picker", Uri.fromFile(p12File),
+                        Uri.fromFile(caFile), password);
+            });
+            assertTrue("Import timed out", finished.await(10, TimeUnit.SECONDS));
+            assertEquals("Import error: " + result.get().error,
+                    CertificateImportState.Status.SUCCESS, result.get().status);
+            assertCleared(password);
+            assertNotNull(store.getProfile(result.get().profileId));
+        } finally {
+            InstrumentationRegistry.getInstrumentation().runOnMainSync(() ->
+                    viewModel.getState().removeObserver(observer));
+            p12File.delete();
+            caFile.delete();
+        }
+    }
+
+    /**
      * Импортирует тестовую пару документов и закрывает принадлежащие тесту потоки.
      *
      * @param profileStore хранилище для импорта
@@ -218,6 +260,25 @@ public final class CertificateProfileStoreInstrumentedTest {
      */
     private InputStream asset(String name) throws Exception {
         return InstrumentationRegistry.getInstrumentation().getContext().getAssets().open(name);
+    }
+
+    /**
+     * Копирует тестовый документ в доступный приложению каталог для чтения по URI.
+     *
+     * @param name имя тестового документа
+     * @return файл в кэше приложения
+     * @throws Exception если документ не удалось скопировать
+     */
+    private File copyAssetToCache(String name) throws Exception {
+        File file = File.createTempFile("certificate-import-", "-" + name, targetContext.getCacheDir());
+        try (InputStream input = asset(name); FileOutputStream output = new FileOutputStream(file)) {
+            byte[] buffer = new byte[4096];
+            int count;
+            while ((count = input.read(buffer)) != -1) {
+                output.write(buffer, 0, count);
+            }
+        }
+        return file;
     }
 
     /**

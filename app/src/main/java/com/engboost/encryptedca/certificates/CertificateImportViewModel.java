@@ -2,6 +2,7 @@ package com.engboost.encryptedca.certificates;
 
 import android.app.Application;
 import android.net.Uri;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
@@ -16,6 +17,7 @@ import java.util.concurrent.RejectedExecutionException;
 
 /** Сохраняет операцию импорта и её результат при пересоздании представления Fragment. */
 public final class CertificateImportViewModel extends AndroidViewModel {
+    private static final String LOG_TAG = "CertificateImport";
     private final CertificateProfileStore store;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final MutableLiveData<CertificateImportState> state =
@@ -66,8 +68,11 @@ public final class CertificateImportViewModel extends AndroidViewModel {
                     state.postValue(CertificateImportState.success(
                             store.importProfile(displayName, p12, password, ca)));
                 } catch (CertificateProfileException e) {
+                    Log.e(LOG_TAG, "Import failed at " + e.getError()
+                            + ", password length=" + password.length, e);
                     state.postValue(CertificateImportState.error(e.getError()));
                 } catch (Exception e) {
+                    Log.e(LOG_TAG, "Could not open selected document", e);
                     state.postValue(CertificateImportState.error(CertificateProfileError.FILE_UNAVAILABLE));
                 } finally {
                     Arrays.fill(password, '\0');

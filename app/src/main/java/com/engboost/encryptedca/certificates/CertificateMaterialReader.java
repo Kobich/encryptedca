@@ -2,6 +2,7 @@ package com.engboost.encryptedca.certificates;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
@@ -17,12 +18,23 @@ final class CertificateMaterialReader {
      * @param input поток PKCS#12; остаётся во владении вызывающего кода
      * @param password пароль контейнера
      * @return проверенный закрытый ключ и цепочка сертификатов
-     * @throws CertificateProfileException если контейнер повреждён, пароль не принят или сертификат непригоден
+     * @throws CertificateProfileException если контейнер не открылся, ключ не найден или сертификат непригоден
      */
     ClientKeyMaterial readPkcs12(InputStream input, char[] password) {
+        KeyStore pkcs12;
         try {
-            KeyStore pkcs12 = KeyStore.getInstance("PKCS12");
+            pkcs12 = KeyStore.getInstance("PKCS12");
             pkcs12.load(input, password);
+        } catch (IOException e) {
+            // Провайдеры сообщают IOException и при неверном пароле, и при неподдерживаемом формате.
+            throw invalidContainer(e);
+        } catch (GeneralSecurityException e) {
+            throw invalidContainer(e);
+        } catch (RuntimeException e) {
+            throw invalidContainer(e);
+        }
+
+        try {
             for (Enumeration<String> aliases = pkcs12.aliases(); aliases.hasMoreElements();) {
                 String alias = aliases.nextElement();
                 if (!pkcs12.isKeyEntry(alias)) {
@@ -33,14 +45,11 @@ final class CertificateMaterialReader {
                     return validateClientEntry((KeyStore.PrivateKeyEntry) entry);
                 }
             }
-            throw invalidContainer(null);
+            throw unavailableKey(null);
         } catch (CertificateProfileException e) {
             throw e;
-        } catch (IOException e) {
-            // Провайдеры PKCS#12 сообщают IOException и при неверном пароле, и при повреждении.
-            throw invalidContainer(e);
         } catch (Exception e) {
-            throw invalidContainer(e);
+            throw unavailableKey(e);
         }
     }
 
@@ -92,14 +101,25 @@ final class CertificateMaterialReader {
     }
 
     /**
-     * Создаёт ошибку чтения контейнера, не различая пароль и повреждение без надёжных данных провайдера.
+     * Создаёт ошибку открытия контейнера, не различая пароль, формат и повреждение без надёжных данных провайдера.
      *
      * @param cause исходная причина ошибки либо null
      * @return ошибка категории PKCS#12
      */
     private static CertificateProfileException invalidContainer(Throwable cause) {
         return new CertificateProfileException(CertificateProfileError.PKCS12_PASSWORD_OR_CORRUPT,
-                "PKCS#12 password is invalid or container is damaged", cause);
+                "PKCS#12 could not be opened", cause);
+    }
+
+    /**
+     * Создаёт ошибку для контейнера, который открылся без доступного закрытого ключа.
+     *
+     * @param cause исходная причина ошибки либо null
+     * @return ошибка извлечения закрытого ключа
+     */
+    private static CertificateProfileException unavailableKey(Throwable cause) {
+        return new CertificateProfileException(CertificateProfileError.PKCS12_KEY_UNAVAILABLE,
+                "PKCS#12 opened, but the private key is unavailable", cause);
     }
 
     /**

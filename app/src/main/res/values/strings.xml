@@ -16,7 +16,8 @@
     <string name="import_failed">Импорт не выполнен</string>
     <string name="document_name_unknown">Выбранный файл</string>
     <string name="error_file_unavailable">Не удалось открыть выбранный файл</string>
-    <string name="error_p12_invalid">Неверный пароль .p12 или контейнер повреждён</string>
+    <string name="error_p12_invalid">Не удалось открыть .p12: проверьте пароль и совместимость формата</string>
+    <string name="error_p12_key_unavailable">.p12 открылся, но клиентский закрытый ключ не найден или не читается</string>
     <string name="error_certificate_invalid">Сертификат не подходит или срок его действия истёк</string>
     <string name="error_storage">Не удалось безопасно сохранить сертификаты</string>
     <string name="error_profile_incomplete">Профиль неполный. Импортируйте сертификаты повторно</string>
