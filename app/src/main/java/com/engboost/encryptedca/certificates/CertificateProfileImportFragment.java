@@ -1,6 +1,5 @@
 package com.engboost.encryptedca.certificates;
 
-import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
@@ -17,46 +16,39 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.engboost.encryptedca.R;
 
-import java.io.InputStream;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-/**
- * Reusable minimal UI for importing a PKCS#12 client certificate and a CA PEM.
- * The source documents are opened once and are never copied to application storage.
- */
+/** View-only layer for picking documents and observing CertificateImportViewModel. */
 public final class CertificateProfileImportFragment extends Fragment {
     private static final String STATE_P12_URI = "p12_uri";
     private static final String STATE_CA_URI = "ca_uri";
 
-    private final ExecutorService importExecutor = Executors.newSingleThreadExecutor();
     private Uri p12Uri;
     private Uri caUri;
-    private CertificateProfileStore profileStore;
-    private EditText displayName;
-    private EditText password;
-    private TextView p12FileName;
-    private TextView caFileName;
-    private TextView status;
-    private Button selectP12;
-    private Button selectCa;
+    private CertificateImportViewModel viewModel;
+    private EditText profileNameInput;
+    private EditText passwordInput;
+    private TextView p12FileNameText;
+    private TextView caFileNameText;
+    private TextView statusText;
+    private Button selectP12Button;
+    private Button selectCaButton;
     private Button importButton;
 
     private final ActivityResultLauncher<String[]> p12Picker = registerForActivityResult(
             new ActivityResultContracts.OpenDocument(), uri -> {
-                if (uri != null && isAdded()) {
+                if (uri != null) {
                     p12Uri = uri;
-                    p12FileName.setText(fileName(uri));
+                    if (p12FileNameText != null) p12FileNameText.setText(documentName(uri));
                 }
             });
     private final ActivityResultLauncher<String[]> caPicker = registerForActivityResult(
             new ActivityResultContracts.OpenDocument(), uri -> {
-                if (uri != null && isAdded()) {
+                if (uri != null) {
                     caUri = uri;
-                    caFileName.setText(fileName(uri));
+                    if (caFileNameText != null) caFileNameText.setText(documentName(uri));
                 }
             });
 
@@ -66,7 +58,7 @@ public final class CertificateProfileImportFragment extends Fragment {
             p12Uri = savedInstanceState.getParcelable(STATE_P12_URI);
             caUri = savedInstanceState.getParcelable(STATE_CA_URI);
         }
-        profileStore = new CertificateProfileStore(requireContext().getApplicationContext());
+        viewModel = new ViewModelProvider(this).get(CertificateImportViewModel.class);
     }
 
     @Nullable @Override public View onCreateView(@NonNull LayoutInflater inflater,
@@ -76,21 +68,22 @@ public final class CertificateProfileImportFragment extends Fragment {
     }
 
     @Override public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        displayName = view.findViewById(R.id.display_name);
-        password = view.findViewById(R.id.p12_password);
-        p12FileName = view.findViewById(R.id.p12_file_name);
-        caFileName = view.findViewById(R.id.ca_file_name);
-        status = view.findViewById(R.id.import_status);
-        selectP12 = view.findViewById(R.id.select_p12);
-        selectCa = view.findViewById(R.id.select_ca);
+        profileNameInput = view.findViewById(R.id.display_name);
+        passwordInput = view.findViewById(R.id.p12_password);
+        p12FileNameText = view.findViewById(R.id.p12_file_name);
+        caFileNameText = view.findViewById(R.id.ca_file_name);
+        statusText = view.findViewById(R.id.import_status);
+        selectP12Button = view.findViewById(R.id.select_p12);
+        selectCaButton = view.findViewById(R.id.select_ca);
         importButton = view.findViewById(R.id.import_profile);
-        if (p12Uri != null) p12FileName.setText(fileName(p12Uri));
-        if (caUri != null) caFileName.setText(fileName(caUri));
+        if (p12Uri != null) p12FileNameText.setText(documentName(p12Uri));
+        if (caUri != null) caFileNameText.setText(documentName(caUri));
 
-        selectP12.setOnClickListener(v -> p12Picker.launch(new String[]{"*/*"}));
-        selectCa.setOnClickListener(v -> caPicker.launch(
+        selectP12Button.setOnClickListener(v -> p12Picker.launch(new String[]{"*/*"}));
+        selectCaButton.setOnClickListener(v -> caPicker.launch(
                 new String[]{"application/x-pem-file", "text/plain", "*/*"}));
-        importButton.setOnClickListener(v -> importSelectedFiles());
+        importButton.setOnClickListener(v -> startImport());
+        viewModel.getState().observe(getViewLifecycleOwner(), this::render);
     }
 
     @Override public void onSaveInstanceState(@NonNull Bundle outState) {
@@ -99,75 +92,69 @@ public final class CertificateProfileImportFragment extends Fragment {
         outState.putParcelable(STATE_CA_URI, caUri);
     }
 
-    @Override public void onDestroy() {
-        importExecutor.shutdownNow();
-        super.onDestroy();
+    @Override public void onDestroyView() {
+        profileNameInput = null;
+        passwordInput = null;
+        p12FileNameText = null;
+        caFileNameText = null;
+        statusText = null;
+        selectP12Button = null;
+        selectCaButton = null;
+        importButton = null;
+        super.onDestroyView();
     }
 
-    private void importSelectedFiles() {
+    private void startImport() {
         if (p12Uri == null || caUri == null) {
-            status.setText(R.string.select_both_files);
+            statusText.setText(R.string.select_both_files);
             return;
         }
-        char[] passwordChars = copyPassword();
-        String name = displayName.getText().toString().trim();
-        if (name.isEmpty()) name = null;
-        password.getText().clear();
-        setImportInProgress(true);
-
-        Context applicationContext = requireContext().getApplicationContext();
-        Uri selectedP12 = p12Uri;
-        Uri selectedCa = caUri;
-        String finalName = name;
-        importExecutor.execute(() -> {
-            try (InputStream p12 = applicationContext.getContentResolver().openInputStream(selectedP12);
-                 InputStream ca = applicationContext.getContentResolver().openInputStream(selectedCa)) {
-                if (p12 == null || ca == null) throw new IllegalStateException("Не удалось открыть выбранный файл");
-                String id = profileStore.importProfile(finalName, p12, passwordChars, ca);
-                postResult(getString(R.string.import_success, id));
-            } catch (Exception e) {
-                postResult(getString(R.string.import_failed, userMessage(e)));
-            } finally {
-                postImportFinished();
-            }
-        });
+        char[] password = copyPassword();
+        String displayName = profileNameInput.getText().toString().trim();
+        if (displayName.isEmpty()) displayName = null;
+        passwordInput.getText().clear();
+        viewModel.importProfile(displayName, p12Uri, caUri, password);
     }
 
     private char[] copyPassword() {
-        int length = password.length();
+        int length = passwordInput.length();
         char[] result = new char[length];
-        password.getText().getChars(0, length, result, 0);
+        passwordInput.getText().getChars(0, length, result, 0);
         return result;
     }
 
-    private void postResult(String message) {
-        if (getActivity() != null) getActivity().runOnUiThread(() -> {
-            if (isAdded() && status != null) status.setText(message);
-        });
+    private void render(CertificateImportState state) {
+        boolean importing = state.status == CertificateImportState.Status.IMPORTING;
+        selectP12Button.setEnabled(!importing);
+        selectCaButton.setEnabled(!importing);
+        importButton.setEnabled(!importing);
+        if (state.status == CertificateImportState.Status.IMPORTING) {
+            statusText.setText(R.string.importing);
+        } else if (state.status == CertificateImportState.Status.SUCCESS) {
+            statusText.setText(getString(R.string.import_success, state.profileId));
+        } else if (state.status == CertificateImportState.Status.ERROR) {
+            statusText.setText(errorMessage(state.error));
+        }
     }
 
-    private void postImportFinished() {
-        if (getActivity() != null) getActivity().runOnUiThread(() -> {
-            if (isAdded() && importButton != null) setImportInProgress(false);
-        });
-    }
-
-    private void setImportInProgress(boolean inProgress) {
-        importButton.setEnabled(!inProgress);
-        selectP12.setEnabled(!inProgress);
-        selectCa.setEnabled(!inProgress);
-        if (inProgress) status.setText(R.string.importing);
-    }
-
-    private String fileName(Uri uri) {
+    private String documentName(Uri uri) {
         try (Cursor cursor = requireContext().getContentResolver().query(uri,
                 new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null)) {
-            if (cursor != null && cursor.moveToFirst()) return cursor.getString(0);
+            if (cursor != null && cursor.moveToFirst() && !cursor.isNull(0)) {
+                return cursor.getString(0);
+            }
+        } catch (Exception ignored) {
+            // The URI is still usable even if its provider cannot expose a display name.
         }
-        return uri.getLastPathSegment();
+        String fallback = uri.getLastPathSegment();
+        return fallback == null ? getString(R.string.document_name_unknown) : fallback;
     }
 
-    private static String userMessage(Exception error) {
-        return error.getMessage() == null ? error.getClass().getSimpleName() : error.getMessage();
+    private String errorMessage(CertificateProfileError error) {
+        if (error == CertificateProfileError.FILE_UNAVAILABLE) return getString(R.string.error_file_unavailable);
+        if (error == CertificateProfileError.PKCS12_PASSWORD_OR_CORRUPT) return getString(R.string.error_p12_invalid);
+        if (error == CertificateProfileError.CERTIFICATE_INVALID) return getString(R.string.error_certificate_invalid);
+        if (error == CertificateProfileError.PROFILE_INCOMPLETE) return getString(R.string.error_profile_incomplete);
+        return getString(R.string.error_storage);
     }
 }

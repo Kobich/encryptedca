@@ -1,7 +1,6 @@
 package com.engboost.encryptedca.certificates;
 
 import java.security.KeyStore;
-import java.security.cert.Certificate;
 
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
@@ -12,14 +11,17 @@ import javax.net.ssl.X509ExtendedKeyManager;
 /** Builds an SSLContext whose client authentication is pinned to one profile alias. */
 public final class ProfileSslContextFactory {
     public SSLContext create(CertificateProfileStore store, String profileId) {
-        if (store == null) throw new IllegalArgumentException("CertificateProfileStore is required");
+        if (store == null) {
+            throw new IllegalArgumentException("CertificateProfileStore is required");
+        }
         try {
-            ActiveCertificateProfile profile = store.getProfile(profileId);
+            CertificateProfile profile = store.getProfile(profileId);
 
             KeyStore clientStore = KeyStore.getInstance("AndroidKeyStore");
             clientStore.load(null);
             if (!clientStore.isKeyEntry(profile.getClientKeyAlias())) {
-                throw new CertificateProfileException("Client key does not exist for " + profileId);
+                throw new CertificateProfileException(CertificateProfileError.PROFILE_INCOMPLETE,
+                        "Client key does not exist");
             }
             KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
             kmf.init(clientStore, null);
@@ -40,7 +42,8 @@ public final class ProfileSslContextFactory {
         } catch (CertificateProfileException e) {
             throw e;
         } catch (Exception e) {
-            throw new CertificateProfileException("Could not create SSLContext for " + profileId, e);
+            throw new CertificateProfileException(CertificateProfileError.STORAGE_FAILED,
+                    "Could not create SSLContext", e);
         }
     }
 
@@ -48,7 +51,8 @@ public final class ProfileSslContextFactory {
         for (KeyManager manager : managers) {
             if (manager instanceof X509ExtendedKeyManager) return (X509ExtendedKeyManager) manager;
         }
-        throw new CertificateProfileException("No X509ExtendedKeyManager was created");
+        throw new CertificateProfileException(CertificateProfileError.STORAGE_FAILED,
+                "No X509ExtendedKeyManager was created");
     }
 
     private static KeyManager[] replaceKeyManager(KeyManager[] managers, X509ExtendedKeyManager replacement) {
@@ -59,6 +63,7 @@ public final class ProfileSslContextFactory {
                 return result;
             }
         }
-        throw new CertificateProfileException("No X509ExtendedKeyManager was created");
+        throw new CertificateProfileException(CertificateProfileError.STORAGE_FAILED,
+                "No X509ExtendedKeyManager was created");
     }
 }
