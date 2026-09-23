@@ -29,7 +29,7 @@ import java.util.concurrent.TimeUnit;
 
 @RunWith(AndroidJUnit4.class)
 public final class CertificateProfileStoreInstrumentedTest {
-    private static final String PASSWORD = "changeit";
+    private static final String PASSWORD = "1234";
     private Context targetContext;
     private CertificateProfileStore store;
 
