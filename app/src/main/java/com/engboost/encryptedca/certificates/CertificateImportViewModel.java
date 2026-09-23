@@ -14,25 +14,40 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 
-/** Owns a single import operation across Fragment view recreation. */
+/** Сохраняет операцию импорта и её результат при пересоздании представления Fragment. */
 public final class CertificateImportViewModel extends AndroidViewModel {
     private final CertificateProfileStore store;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final MutableLiveData<CertificateImportState> state =
             new MutableLiveData<>(CertificateImportState.idle());
 
+    /**
+     * Создаёт состояние импорта и хранилище профилей для приложения.
+     *
+     * @param application экземпляр Android-приложения
+     */
     public CertificateImportViewModel(@NonNull Application application) {
         super(application);
         store = new CertificateProfileStore(application);
     }
 
+    /**
+     * Возвращает наблюдаемое состояние текущего импорта.
+     *
+     * @return LiveData состояний экрана импорта
+     */
     LiveData<CertificateImportState> getState() {
         return state;
     }
 
     /**
-     * Takes ownership of password. It is cleared even when either URI cannot be opened.
-     * The operation continues when a Fragment view goes away; a recreated view observes its result.
+     * Принимает владение паролем и очищает его, даже если URI нельзя открыть.
+     * Импорт продолжается при уничтожении View; новое представление получает его результат.
+     *
+     * @param displayName необязательное имя профиля
+     * @param p12Uri URI контейнера PKCS#12
+     * @param caUri URI сертификата CA
+     * @param password пароль; владение массивом передаётся ViewModel
      */
     void importProfile(String displayName, Uri p12Uri, Uri caUri, char[] password) {
         if (state.getValue() != null && state.getValue().status == CertificateImportState.Status.IMPORTING) {
@@ -64,8 +79,11 @@ public final class CertificateImportViewModel extends AndroidViewModel {
         }
     }
 
+    /**
+     * Завершает приём задач при уничтожении ViewModel, позволяя начатому импорту закончить запись.
+     */
     @Override protected void onCleared() {
-        // Do not interrupt active writes: compensation in CertificateProfileStore must complete.
+        // Не прерываем запись: хранилище должно завершить импорт или компенсирующую очистку.
         executor.shutdown();
     }
 }

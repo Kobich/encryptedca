@@ -8,8 +8,16 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509ExtendedKeyManager;
 
-/** Builds an SSLContext whose client authentication is pinned to one profile alias. */
+/** Создаёт TLS-контекст с клиентской аутентификацией через alias выбранного профиля. */
 public final class ProfileSslContextFactory {
+    /**
+     * Создаёт TLS-контекст с ключом и CA заданного профиля.
+     *
+     * @param store хранилище профилей
+     * @param profileId идентификатор выбранного профиля
+     * @return TLS-контекст с выбранным клиентским alias и CA
+     * @throws CertificateProfileException если профиль или компоненты TLS недоступны
+     */
     public SSLContext create(CertificateProfileStore store, String profileId) {
         if (store == null) {
             throw new IllegalArgumentException("CertificateProfileStore is required");
@@ -47,6 +55,13 @@ public final class ProfileSslContextFactory {
         }
     }
 
+    /**
+     * Находит X509-менеджер среди созданных KeyManager.
+     *
+     * @param managers менеджеры ключей
+     * @return найденный X509ExtendedKeyManager
+     * @throws CertificateProfileException если такого менеджера нет
+     */
     private static X509ExtendedKeyManager findX509ExtendedKeyManager(KeyManager[] managers) {
         for (KeyManager manager : managers) {
             if (manager instanceof X509ExtendedKeyManager) return (X509ExtendedKeyManager) manager;
@@ -55,6 +70,14 @@ public final class ProfileSslContextFactory {
                 "No X509ExtendedKeyManager was created");
     }
 
+    /**
+     * Заменяет клиентский X509-менеджер менеджером выбранного alias.
+     *
+     * @param managers исходный набор менеджеров
+     * @param replacement менеджер с ограничением на alias
+     * @return копия набора с заменённым менеджером
+     * @throws CertificateProfileException если заменяемый менеджер не найден
+     */
     private static KeyManager[] replaceKeyManager(KeyManager[] managers, X509ExtendedKeyManager replacement) {
         KeyManager[] result = managers.clone();
         for (int i = 0; i < result.length; i++) {

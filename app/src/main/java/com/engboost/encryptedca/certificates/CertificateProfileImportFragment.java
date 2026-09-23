@@ -20,7 +20,7 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.engboost.encryptedca.R;
 
-/** View-only layer for picking documents and observing CertificateImportViewModel. */
+/** Экран выбора документов и отображения состояния CertificateImportViewModel. */
 public final class CertificateProfileImportFragment extends Fragment {
     private static final String STATE_P12_URI = "p12_uri";
     private static final String STATE_CA_URI = "ca_uri";
@@ -52,6 +52,11 @@ public final class CertificateProfileImportFragment extends Fragment {
                 }
             });
 
+    /**
+     * Восстанавливает выбранные документы и получает сохраняемую ViewModel.
+     *
+     * @param savedInstanceState состояние фрагмента после пересоздания
+     */
     @Override public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         if (savedInstanceState != null) {
@@ -61,12 +66,26 @@ public final class CertificateProfileImportFragment extends Fragment {
         viewModel = new ViewModelProvider(this).get(CertificateImportViewModel.class);
     }
 
+    /**
+     * Создаёт разметку экрана импорта сертификатов.
+     *
+     * @param inflater источник XML-разметки
+     * @param container родительский контейнер фрагмента
+     * @param savedInstanceState сохранённое состояние
+     * @return корневое представление экрана
+     */
     @Nullable @Override public View onCreateView(@NonNull LayoutInflater inflater,
                                                   @Nullable ViewGroup container,
                                                   @Nullable Bundle savedInstanceState) {
         return inflater.inflate(R.layout.fragment_certificate_profile_import, container, false);
     }
 
+    /**
+     * Находит поля разметки, подключает выбор файлов и наблюдение за импортом.
+     *
+     * @param view созданное корневое представление
+     * @param savedInstanceState сохранённое состояние представления
+     */
     @Override public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         profileNameInput = view.findViewById(R.id.display_name);
         passwordInput = view.findViewById(R.id.p12_password);
@@ -86,12 +105,20 @@ public final class CertificateProfileImportFragment extends Fragment {
         viewModel.getState().observe(getViewLifecycleOwner(), this::render);
     }
 
+    /**
+     * Сохраняет URI выбранных документов при пересоздании фрагмента.
+     *
+     * @param outState Bundle для сохранения состояния
+     */
     @Override public void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
         outState.putParcelable(STATE_P12_URI, p12Uri);
         outState.putParcelable(STATE_CA_URI, caUri);
     }
 
+    /**
+     * Освобождает ссылки на представления уничтожаемого экрана.
+     */
     @Override public void onDestroyView() {
         profileNameInput = null;
         passwordInput = null;
@@ -104,6 +131,9 @@ public final class CertificateProfileImportFragment extends Fragment {
         super.onDestroyView();
     }
 
+    /**
+     * Проверяет ввод, очищает поле пароля и передаёт массив во владение ViewModel.
+     */
     private void startImport() {
         if (p12Uri == null || caUri == null) {
             statusText.setText(R.string.select_both_files);
@@ -116,6 +146,11 @@ public final class CertificateProfileImportFragment extends Fragment {
         viewModel.importProfile(displayName, p12Uri, caUri, password);
     }
 
+    /**
+     * Копирует пароль из поля ввода в массив символов.
+     *
+     * @return массив пароля, который далее очищает ViewModel
+     */
     private char[] copyPassword() {
         int length = passwordInput.length();
         char[] result = new char[length];
@@ -123,6 +158,11 @@ public final class CertificateProfileImportFragment extends Fragment {
         return result;
     }
 
+    /**
+     * Отображает состояние импорта и включает либо блокирует кнопки.
+     *
+     * @param state новое состояние операции
+     */
     private void render(CertificateImportState state) {
         boolean importing = state.status == CertificateImportState.Status.IMPORTING;
         selectP12Button.setEnabled(!importing);
@@ -137,6 +177,12 @@ public final class CertificateProfileImportFragment extends Fragment {
         }
     }
 
+    /**
+     * Получает имя документа; при недоступности метаданных использует часть URI.
+     *
+     * @param uri URI выбранного документа
+     * @return отображаемое имя документа
+     */
     private String documentName(Uri uri) {
         try (Cursor cursor = requireContext().getContentResolver().query(uri,
                 new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null)) {
@@ -144,12 +190,18 @@ public final class CertificateProfileImportFragment extends Fragment {
                 return cursor.getString(0);
             }
         } catch (Exception ignored) {
-            // The URI is still usable even if its provider cannot expose a display name.
+            // URI можно использовать, даже если провайдер не возвращает имя документа.
         }
         String fallback = uri.getLastPathSegment();
         return fallback == null ? getString(R.string.document_name_unknown) : fallback;
     }
 
+    /**
+     * Выбирает локализованную строку для кода ошибки импорта.
+     *
+     * @param error категория ошибки
+     * @return сообщение для пользователя
+     */
     private String errorMessage(CertificateProfileError error) {
         if (error == CertificateProfileError.FILE_UNAVAILABLE) return getString(R.string.error_file_unavailable);
         if (error == CertificateProfileError.PKCS12_PASSWORD_OR_CORRUPT) return getString(R.string.error_p12_invalid);

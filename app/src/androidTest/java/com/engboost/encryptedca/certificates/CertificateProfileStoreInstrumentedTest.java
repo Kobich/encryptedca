@@ -33,16 +33,27 @@ public final class CertificateProfileStoreInstrumentedTest {
     private Context targetContext;
     private CertificateProfileStore store;
 
+    /**
+     * Создаёт хранилище и очищает тестовые профили перед проверкой.
+     */
     @Before public void setUp() {
         targetContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
         store = new CertificateProfileStore(targetContext);
         clearProfiles(store);
     }
 
+    /**
+     * Удаляет профили, оставшиеся после проверки.
+     */
     @After public void tearDown() {
         clearProfiles(store);
     }
 
+    /**
+     * Проверяет импорт и повторное чтение профиля новым экземпляром хранилища.
+     *
+     * @throws Exception если тестовые assets или Keystore недоступны
+     */
     @Test public void importsAndReadsProfileAfterStoreRecreation() throws Exception {
         String profileId = importFixture(store, "First");
         CertificateProfile profile = store.getProfile(profileId);
@@ -55,6 +66,11 @@ public final class CertificateProfileStoreInstrumentedTest {
         assertNotNull(recreated.getProfile(profileId).getCaCertificate());
     }
 
+    /**
+     * Проверяет категорию ошибки пароля, очистку массива и отсутствие записи в индексе.
+     *
+     * @throws Exception если тестовый asset недоступен
+     */
     @Test public void clearsPasswordAfterInvalidPasswordAndDoesNotRegisterProfile() throws Exception {
         char[] password = "wrong-password".toCharArray();
         try {
@@ -67,6 +83,11 @@ public final class CertificateProfileStoreInstrumentedTest {
         assertTrue(store.getProfileIds().isEmpty());
     }
 
+    /**
+     * Проверяет отказ для повреждённых PKCS#12 и CA и очистку переданных паролей.
+     *
+     * @throws Exception если тестовые assets недоступны
+     */
     @Test public void rejectsCorruptedInputsWithoutRegisteringProfile() throws Exception {
         char[] password = PASSWORD.toCharArray();
         try {
@@ -89,6 +110,11 @@ public final class CertificateProfileStoreInstrumentedTest {
         assertTrue(store.getProfileIds().isEmpty());
     }
 
+    /**
+     * Проверяет удаление ключа из Keystore после ошибки сохранения CA.
+     *
+     * @throws Exception если тестовые assets или Keystore недоступны
+     */
     @Test public void removesClientKeyWhenCaSaveFails() throws Exception {
         int aliasesBefore = clientAliasCount();
         CertificateProfileStore failingStore = new CertificateProfileStore(targetContext,
@@ -105,6 +131,11 @@ public final class CertificateProfileStoreInstrumentedTest {
         assertEquals(aliasesBefore, clientAliasCount());
     }
 
+    /**
+     * Проверяет удаление профиля и сброс активного идентификатора.
+     *
+     * @throws Exception если тестовые assets недоступны
+     */
     @Test public void deletesProfileAndClearsActiveProfile() throws Exception {
         String profileId = importFixture(store, "To delete");
         store.setActiveProfile(profileId);
@@ -113,6 +144,11 @@ public final class CertificateProfileStoreInstrumentedTest {
         assertNull(store.getActiveProfileId());
     }
 
+    /**
+     * Проверяет разные alias профилей и создание TLS-контекста выбранного профиля.
+     *
+     * @throws Exception если тестовые assets недоступны
+     */
     @Test public void usesSelectedProfileForSslContext() throws Exception {
         String first = importFixture(store, "First");
         String second = importFixture(store, "Second");
@@ -123,6 +159,11 @@ public final class CertificateProfileStoreInstrumentedTest {
         assertNotNull(new ProfileSslContextFactory().create(store, second));
     }
 
+    /**
+     * Проверяет ошибку недоступного URI, очистку пароля и получение результата новым наблюдателем.
+     *
+     * @throws Exception если ожидание состояния превышает тайм-аут
+     */
     @Test public void reportsUnavailableUriAndClearsPasswordAcrossObserverRecreation() throws Exception {
         Application application = (Application) targetContext.getApplicationContext();
         CertificateImportViewModel viewModel = new CertificateImportViewModel(application);
@@ -154,24 +195,55 @@ public final class CertificateProfileStoreInstrumentedTest {
                 viewModel.getState().removeObserver(recreatedObserver));
     }
 
+    /**
+     * Импортирует тестовую пару документов и закрывает принадлежащие тесту потоки.
+     *
+     * @param profileStore хранилище для импорта
+     * @param name имя профиля
+     * @return идентификатор созданного профиля
+     * @throws Exception если asset не удалось открыть или импортировать
+     */
     private String importFixture(CertificateProfileStore profileStore, String name) throws Exception {
         try (InputStream p12 = asset("client.p12"); InputStream ca = asset("ca.pem")) {
             return profileStore.importProfile(name, p12, PASSWORD.toCharArray(), ca);
         }
     }
 
+    /**
+     * Открывает файл из assets тестового APK.
+     *
+     * @param name имя файла fixture
+     * @return открытый поток, который должен закрыть вызывающий код
+     * @throws Exception если asset отсутствует
+     */
     private InputStream asset(String name) throws Exception {
         return InstrumentationRegistry.getInstrumentation().getContext().getAssets().open(name);
     }
 
+    /**
+     * Проверяет, что каждый символ массива пароля обнулён.
+     *
+     * @param password проверяемый массив
+     */
     private static void assertCleared(char[] password) {
         for (char value : password) assertEquals('\0', value);
     }
 
+    /**
+     * Удаляет все профили тестового хранилища.
+     *
+     * @param profileStore очищаемое хранилище
+     */
     private static void clearProfiles(CertificateProfileStore profileStore) {
         for (String id : profileStore.getProfileIds()) profileStore.deleteProfile(id);
     }
 
+    /**
+     * Считает клиентские alias в Android Keystore.
+     *
+     * @return число alias с префиксом mtls_client_
+     * @throws Exception если Keystore недоступен
+     */
     private static int clientAliasCount() throws Exception {
         KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
         keyStore.load(null);
@@ -183,7 +255,20 @@ public final class CertificateProfileStoreInstrumentedTest {
     }
 
     private static final class FailingCaStorage extends EncryptedCaStorage {
+        /**
+         * Создаёт тестовое хранилище, имитирующее отказ записи CA.
+         *
+         * @param context контекст приложения
+         */
         FailingCaStorage(Context context) { super(context); }
+
+        /**
+         * Завершает запись предсказуемой ошибкой для проверки отката импорта.
+         *
+         * @param profileId идентификатор профиля
+         * @param caCertificate сертификат CA
+         * @throws CertificateProfileException всегда сообщает тестовую ошибку хранения
+         */
         @Override void write(String profileId, java.security.cert.X509Certificate caCertificate) {
             throw new CertificateProfileException(CertificateProfileError.STORAGE_FAILED,
                     "Test CA storage failure");

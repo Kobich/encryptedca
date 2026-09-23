@@ -9,8 +9,16 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.Enumeration;
 
-/** Reads and validates certificate material; callers retain ownership of input streams. */
+/** Читает и проверяет сертификаты; входные потоки остаются у вызывающего кода. */
 final class CertificateMaterialReader {
+    /**
+     * Читает PKCS#12, находит закрытый ключ и проверяет клиентскую цепочку.
+     *
+     * @param input поток PKCS#12; остаётся во владении вызывающего кода
+     * @param password пароль контейнера
+     * @return проверенный закрытый ключ и цепочка сертификатов
+     * @throws CertificateProfileException если контейнер повреждён, пароль не принят или сертификат непригоден
+     */
     ClientKeyMaterial readPkcs12(InputStream input, char[] password) {
         try {
             KeyStore pkcs12 = KeyStore.getInstance("PKCS12");
@@ -29,13 +37,20 @@ final class CertificateMaterialReader {
         } catch (CertificateProfileException e) {
             throw e;
         } catch (IOException e) {
-            // PKCS#12 providers use IOException for both integrity/password failures and corruption.
+            // Провайдеры PKCS#12 сообщают IOException и при неверном пароле, и при повреждении.
             throw invalidContainer(e);
         } catch (Exception e) {
             throw invalidContainer(e);
         }
     }
 
+    /**
+     * Разбирает CA PEM и проверяет тип, срок действия и признак CA.
+     *
+     * @param input поток PEM; остаётся во владении вызывающего кода
+     * @return проверенный сертификат центра сертификации
+     * @throws CertificateProfileException если PEM некорректен или сертификат неподходящий
+     */
     X509Certificate readCaPem(InputStream input) {
         try {
             Certificate certificate = CertificateFactory.getInstance("X.509").generateCertificate(input);
@@ -55,6 +70,13 @@ final class CertificateMaterialReader {
         }
     }
 
+    /**
+     * Проверяет наличие закрытого ключа, цепочки и действующего клиентского сертификата.
+     *
+     * @param entry найденная запись PKCS#12
+     * @return проверенный материал клиентского ключа
+     * @throws CertificateProfileException если запись неполна или сертификат просрочен
+     */
     private ClientKeyMaterial validateClientEntry(KeyStore.PrivateKeyEntry entry) {
         PrivateKey privateKey = entry.getPrivateKey();
         Certificate[] chain = entry.getCertificateChain();
@@ -69,11 +91,23 @@ final class CertificateMaterialReader {
         return new ClientKeyMaterial(privateKey, chain);
     }
 
+    /**
+     * Создаёт ошибку чтения контейнера, не различая пароль и повреждение без надёжных данных провайдера.
+     *
+     * @param cause исходная причина ошибки либо null
+     * @return ошибка категории PKCS#12
+     */
     private static CertificateProfileException invalidContainer(Throwable cause) {
         return new CertificateProfileException(CertificateProfileError.PKCS12_PASSWORD_OR_CORRUPT,
                 "PKCS#12 password is invalid or container is damaged", cause);
     }
 
+    /**
+     * Создаёт ошибку непригодного сертификата.
+     *
+     * @param cause исходная причина ошибки либо null
+     * @return ошибка категории сертификата
+     */
     private static CertificateProfileException invalidCertificate(Throwable cause) {
         return new CertificateProfileException(CertificateProfileError.CERTIFICATE_INVALID,
                 "Certificate material is unsuitable or expired", cause);

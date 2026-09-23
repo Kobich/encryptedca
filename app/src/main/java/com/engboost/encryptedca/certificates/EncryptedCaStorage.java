@@ -21,17 +21,29 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 
-/** Persists CA DER as the existing [iv length][iv][AES-GCM ciphertext] file format. */
+/** Хранит DER сертификата CA в совместимом формате [длина IV][IV][AES-GCM шифротекст]. */
 class EncryptedCaStorage {
     private static final String ANDROID_KEY_STORE = "AndroidKeyStore";
     private static final String CA_KEY_ALIAS = "mtls_ca_storage_key";
 
     private final Context context;
 
+    /**
+     * Создаёт CA-хранилище в каталоге приложения, исключённом из backup.
+     *
+     * @param context контекст Android-приложения
+     */
     EncryptedCaStorage(Context context) {
         this.context = context.getApplicationContext();
     }
 
+    /**
+     * Шифрует сертификат новым Keystore IV и сохраняет его в совместимом формате файла.
+     *
+     * @param profileId идентификатор профиля
+     * @param caCertificate проверенный сертификат CA
+     * @throws CertificateProfileException если шифрование, запись или перенос файла завершились ошибкой
+     */
     void write(String profileId, X509Certificate caCertificate) {
         File temp = temporaryFile(profileId);
         try {
@@ -59,6 +71,13 @@ class EncryptedCaStorage {
         }
     }
 
+    /**
+     * Читает существующий CA-файл и расшифровывает его существующим Keystore-ключом.
+     *
+     * @param profileId идентификатор профиля
+     * @return сертификат CA
+     * @throws CertificateProfileException если файл или ключ отсутствует, повреждён либо не читается
+     */
     X509Certificate read(String profileId) {
         File source = caFile(profileId);
         try (FileInputStream input = new FileInputStream(source)) {
@@ -80,8 +99,20 @@ class EncryptedCaStorage {
         }
     }
 
+    /**
+     * Проверяет наличие сохранённого CA-файла профиля.
+     *
+     * @param profileId идентификатор профиля
+     * @return true, если файл существует
+     */
     boolean exists(String profileId) { return caFile(profileId).isFile(); }
 
+    /**
+     * Удаляет CA-файл и оставшийся временный файл профиля.
+     *
+     * @param profileId идентификатор профиля
+     * @throws CertificateProfileException если файл не удалось удалить
+     */
     void delete(String profileId) {
         CertificateProfileException failure = null;
         failure = deleteFile(caFile(profileId), failure);
@@ -89,6 +120,13 @@ class EncryptedCaStorage {
         if (failure != null) throw failure;
     }
 
+    /**
+     * Получает уже существующий ключ шифрования CA.
+     *
+     * @return ключ AES из Android Keystore
+     * @throws Exception если Keystore недоступен
+     * @throws CertificateProfileException если ключ отсутствует
+     */
     private SecretKey getExistingEncryptionKey() throws Exception {
         Key key = androidKeyStore().getKey(CA_KEY_ALIAS, null);
         if (!(key instanceof SecretKey)) {
@@ -98,6 +136,12 @@ class EncryptedCaStorage {
         return (SecretKey) key;
     }
 
+    /**
+     * Получает ключ CA или создаёт его при первом импорте.
+     *
+     * @return ключ AES из Android Keystore
+     * @throws Exception если ключ не удалось получить или создать
+     */
     private SecretKey getOrCreateEncryptionKey() throws Exception {
         try {
             return getExistingEncryptionKey();
@@ -114,21 +158,59 @@ class EncryptedCaStorage {
         return generator.generateKey();
     }
 
+    /**
+     * Открывает Android Keystore.
+     *
+     * @return загруженное хранилище ключей устройства
+     * @throws Exception если провайдер Keystore недоступен
+     */
     private static KeyStore androidKeyStore() throws Exception {
         KeyStore store = KeyStore.getInstance(ANDROID_KEY_STORE);
         store.load(null);
         return store;
     }
 
+    /**
+     * Формирует путь CA-файла в сохранённом формате.
+     *
+     * @param profileId идентификатор профиля
+     * @return файл <profileId>.ca.enc
+     */
     private File caFile(String profileId) { return new File(context.getNoBackupFilesDir(), profileId + ".ca.enc"); }
+
+    /**
+     * Формирует путь временного файла для записи CA.
+     *
+     * @param profileId идентификатор профиля
+     * @return временный файл <profileId>.ca.enc.tmp
+     */
     private File temporaryFile(String profileId) { return new File(context.getNoBackupFilesDir(), profileId + ".ca.enc.tmp"); }
 
+    /**
+     * Удаляет временный файл и прикрепляет ошибку очистки к исходной ошибке записи.
+     *
+     * @param profileId идентификатор профиля
+     * @param original исходная ошибка записи
+     */
     private void deleteTemporary(String profileId, CertificateProfileException original) {
         try { delete(temporaryFile(profileId)); } catch (Exception cleanupError) { original.addSuppressed(cleanupError); }
     }
+    /**
+     * Удаляет файл, если он существует.
+     *
+     * @param file удаляемый файл
+     * @throws IOException если файл не удалось удалить
+     */
     private static void delete(File file) throws IOException {
         if (file.exists() && !file.delete()) throw new IOException("Could not delete " + file.getName());
     }
+    /**
+     * Удаляет файл и сохраняет ошибку очистки в имеющейся ошибке.
+     *
+     * @param file удаляемый файл
+     * @param prior ранее возникшая ошибка или null
+     * @return исходная либо созданная ошибка очистки
+     */
     private static CertificateProfileException deleteFile(File file, CertificateProfileException prior) {
         try { delete(file); return prior; } catch (Exception e) {
             CertificateProfileException failure = prior == null ? new CertificateProfileException(
@@ -137,6 +219,14 @@ class EncryptedCaStorage {
             return failure;
         }
     }
+    /**
+     * Читает заданное количество байтов из потока.
+     *
+     * @param input входной поток
+     * @param length ожидаемое число байтов
+     * @return прочитанные байты
+     * @throws IOException если длина некорректна или поток завершился раньше
+     */
     private static byte[] readFully(InputStream input, int length) throws IOException {
         if (length < 0) throw new IOException("Invalid encrypted CA length");
         ByteArrayOutputStream output = new ByteArrayOutputStream(length);
