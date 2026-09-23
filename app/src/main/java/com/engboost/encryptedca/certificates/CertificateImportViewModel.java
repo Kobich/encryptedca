@@ -59,24 +59,27 @@ public final class CertificateImportViewModel extends AndroidViewModel {
         state.setValue(CertificateImportState.importing());
         try {
             executor.execute(() -> {
+                CertificateImportState result;
                 try (InputStream p12 = getApplication().getContentResolver().openInputStream(p12Uri);
                      InputStream ca = getApplication().getContentResolver().openInputStream(caUri)) {
                     if (p12 == null || ca == null) {
                         throw new CertificateProfileException(CertificateProfileError.FILE_UNAVAILABLE,
                                 "Selected document could not be opened");
                     }
-                    state.postValue(CertificateImportState.success(
-                            store.importProfile(displayName, p12, password, ca)));
+                    result = CertificateImportState.success(
+                            store.importProfile(displayName, p12, password, ca));
                 } catch (CertificateProfileException e) {
                     Log.e(LOG_TAG, "Import failed at " + e.getError()
                             + ", password length=" + password.length, e);
-                    state.postValue(CertificateImportState.error(e.getError()));
+                    result = CertificateImportState.error(e.getError());
                 } catch (Exception e) {
                     Log.e(LOG_TAG, "Could not open selected document", e);
-                    state.postValue(CertificateImportState.error(CertificateProfileError.FILE_UNAVAILABLE));
+                    result = CertificateImportState.error(CertificateProfileError.FILE_UNAVAILABLE);
                 } finally {
                     Arrays.fill(password, '\0');
                 }
+                // Результат и навигация доступны только после закрытия потоков и очистки пароля.
+                state.postValue(result);
             });
         } catch (RejectedExecutionException e) {
             Arrays.fill(password, '\0');

@@ -10,7 +10,9 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
@@ -36,6 +38,8 @@ public final class CertificateProfileImportFragment extends Fragment {
     private Button selectP12Button;
     private Button selectCaButton;
     private Button importButton;
+    private boolean returnedToList;
+    private OnBackPressedCallback importBackCallback;
 
     private final ActivityResultLauncher<String[]> p12Picker = registerForActivityResult(
             new ActivityResultContracts.OpenDocument(), uri -> {
@@ -95,6 +99,16 @@ public final class CertificateProfileImportFragment extends Fragment {
         selectP12Button = view.findViewById(R.id.select_p12);
         selectCaButton = view.findViewById(R.id.select_ca);
         importButton = view.findViewById(R.id.import_profile);
+        importBackCallback = new OnBackPressedCallback(false) {
+            /** Поясняет, почему нельзя уйти во время записи сертификатов. */
+            @Override public void handleOnBackPressed() {
+                Toast.makeText(requireContext(), R.string.import_wait_before_leaving,
+                        Toast.LENGTH_SHORT).show();
+            }
+        };
+        requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), importBackCallback);
+        view.findViewById(R.id.back_to_profiles).setOnClickListener(v ->
+                requireActivity().getOnBackPressedDispatcher().onBackPressed());
         if (p12Uri != null) p12FileNameText.setText(documentName(p12Uri));
         if (caUri != null) caFileNameText.setText(documentName(caUri));
 
@@ -128,7 +142,17 @@ public final class CertificateProfileImportFragment extends Fragment {
         selectP12Button = null;
         selectCaButton = null;
         importButton = null;
+        importBackCallback = null;
         super.onDestroyView();
+    }
+
+    /** Завершает отложенный возврат, если импорт закончился в фоне приложения. */
+    @Override public void onResume() {
+        super.onResume();
+        CertificateImportState state = viewModel.getState().getValue();
+        if (state != null) {
+            render(state);
+        }
     }
 
     /**
@@ -165,6 +189,9 @@ public final class CertificateProfileImportFragment extends Fragment {
      */
     private void render(CertificateImportState state) {
         boolean importing = state.status == CertificateImportState.Status.IMPORTING;
+        importBackCallback.setEnabled(importing);
+        passwordInput.setEnabled(!importing);
+        profileNameInput.setEnabled(!importing);
         selectP12Button.setEnabled(!importing);
         selectCaButton.setEnabled(!importing);
         importButton.setEnabled(!importing);
@@ -172,6 +199,10 @@ public final class CertificateProfileImportFragment extends Fragment {
             statusText.setText(R.string.importing);
         } else if (state.status == CertificateImportState.Status.SUCCESS) {
             statusText.setText(getString(R.string.import_success, state.profileId));
+            if (!returnedToList && isResumed() && !getParentFragmentManager().isStateSaved()) {
+                returnedToList = true;
+                getParentFragmentManager().popBackStack();
+            }
         } else if (state.status == CertificateImportState.Status.ERROR) {
             statusText.setText(errorMessage(state.error));
         }

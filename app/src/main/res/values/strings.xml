@@ -1,4 +1,23 @@
 <resources>
+    <string name="profiles_title">Сертификаты</string>
+    <string name="add_profile">Добавить пару</string>
+    <string name="no_active_profile">Активный сертификат не выбран</string>
+    <string name="active_profile_selected">Активный профиль отмечен в списке</string>
+    <string name="profiles_loading">Обновление списка…</string>
+    <string name="profiles_empty">Пока нет сохранённых пар. Добавьте клиентский .p12 и CA PEM.</string>
+    <string name="profiles_hint">Нажмите на профиль, чтобы выбрать его для подключения.</string>
+    <string name="unnamed_profile">Без названия</string>
+    <string name="profile_active">Активный</string>
+    <string name="select_profile_title">Сменить сертификат?</string>
+    <string name="select_profile_confirmation">Вы точно хотите сменить сертификат и выбрать профиль «%1$s»?</string>
+    <string name="delete_profile_title">Удалить профиль?</string>
+    <string name="delete_profile_confirmation">Удалить «%1$s» вместе с клиентским ключом и CA? Если профиль активен, выбор будет сброшен.</string>
+    <string name="delete_profile_accessibility">Удалить профиль %1$s</string>
+    <string name="cancel">Отмена</string>
+    <string name="select">Выбрать</string>
+    <string name="delete">Удалить</string>
+    <string name="back_to_profiles">Назад к списку</string>
+    <string name="import_wait_before_leaving">Сертификаты сохраняются. Дождитесь завершения импорта.</string>
     <string name="app_name">encryptedca</string>
     <string name="import_title">Импорт mTLS-профиля</string>
     <string name="import_description">Выберите клиентский контейнер PKCS#12 и сертификат удостоверяющего центра.</string>

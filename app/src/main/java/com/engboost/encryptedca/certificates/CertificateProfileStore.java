@@ -109,6 +109,15 @@ public final class CertificateProfileStore {
     }
 
     /**
+     * Читает имя из индекса, чтобы даже неполный профиль можно было показать и удалить.
+     * @param profileId идентификатор профиля
+     * @return имя либо null
+     */
+    String getDisplayName(String profileId) {
+        return preferences.getString(DISPLAY_NAME_PREFIX + profileId, null);
+    }
+
+    /**
      * Сохраняет выбранный активный профиль.
      *
      * @param profileId идентификатор существующего профиля

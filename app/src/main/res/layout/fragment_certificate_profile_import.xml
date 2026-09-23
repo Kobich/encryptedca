@@ -11,6 +11,13 @@
         android:paddingHorizontal="24dp"
         android:paddingVertical="32dp">
 
+        <Button
+            android:id="@+id/back_to_profiles"
+            style="?attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/back_to_profiles" />
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -59,6 +66,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:hint="@string/password_hint"
+            android:saveEnabled="false"
             android:imeOptions="actionDone"
             android:inputType="textPassword" />
 
