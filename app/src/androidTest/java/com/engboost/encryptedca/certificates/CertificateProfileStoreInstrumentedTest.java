@@ -84,6 +84,20 @@ public final class CertificateProfileStoreInstrumentedTest {
     }
 
     /**
+     * Проверяет PBES2/AES-256 контейнер без пароля, созданный современным OpenSSL.
+     *
+     * @throws Exception если тестовые документы недоступны
+     */
+    @Test public void importsPasswordlessPbes2Pkcs12() throws Exception {
+        char[] noPassword = new char[0];
+        String profileId = store.importProfile("PBES2 without password",
+                asset("client-no-password-pbes2.p12"), noPassword,
+                asset("ca-without-basic-constraints.pem"));
+        assertCleared(noPassword);
+        assertEquals("PBES2 without password", store.getProfile(profileId).getDisplayName());
+    }
+
+    /**
      * Проверяет категорию ошибки пароля, очистку массива и отсутствие записи в индексе.
      *
      * @throws Exception если тестовый asset недоступен

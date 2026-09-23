@@ -11,7 +11,7 @@ Import order: read PKCS#12 and CA → save the client key → encrypt CA → reg
 
 The caller owns input streams and closes them. `CertificateProfileStore.importProfile` takes ownership of its password `char[]` and clears it. The ViewModel also clears the array if a document cannot be opened before the store receives it. Passwords are not saved in UI state, bundles, files or logs.
 
-An empty password field supports PKCS#12 containers exported without a password. Android providers differ between an empty password and `null`, so the reader safely tries both only for an empty field. The selected CA PEM is an explicit trust anchor: it is checked as X.509 and for validity, but it may be a legacy self-signed issuer certificate without the `BasicConstraints CA:TRUE` extension.
+An empty password field supports PKCS#12 containers exported without a password. Android providers and PKCS#12 exporters differ between `null`, an empty array and one zero character, so the reader safely tries these representations only for an empty field. The selected CA PEM is an explicit trust anchor: it is checked as X.509 and for validity, but it may be a legacy self-signed issuer certificate without the `BasicConstraints CA:TRUE` extension.
 
 The instrumentation fixtures are in `app/src/androidTest/assets`. Run the device tests with:
 

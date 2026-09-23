@@ -43,8 +43,8 @@ final class CertificateMaterialReader {
     }
 
     /**
-     * Открывает контейнер без пароля сначала с null, затем с пустым массивом.
-     * Android PKCS#12-провайдеры по-разному трактуют эти два варианта.
+     * Открывает контейнер без пароля с null, пустым массивом и одним нулевым символом.
+     * Android PKCS#12-провайдеры и экспортёры по-разному трактуют эти варианты.
      *
      * @param encoded содержимое PKCS#12 только в оперативной памяти
      * @return проверенный закрытый ключ и цепочка сертификатов
@@ -60,8 +60,16 @@ final class CertificateMaterialReader {
             try {
                 return readPkcs12(encoded, new char[0]);
             } catch (CertificateProfileException emptyPassword) {
-                emptyPassword.addSuppressed(withoutPassword);
-                throw emptyPassword;
+                char[] zeroCharacterPassword = new char[]{'\0'};
+                try {
+                    return readPkcs12(encoded, zeroCharacterPassword);
+                } catch (CertificateProfileException zeroCharacterFailure) {
+                    zeroCharacterFailure.addSuppressed(emptyPassword);
+                    zeroCharacterFailure.addSuppressed(withoutPassword);
+                    throw zeroCharacterFailure;
+                } finally {
+                    Arrays.fill(zeroCharacterPassword, '\0');
+                }
             }
         }
     }
@@ -105,7 +113,7 @@ final class CertificateMaterialReader {
     }
 
     /**
-     * Копирует PKCS#12 в память, чтобы без пароля попробовать null и пустой массив.
+     * Копирует PKCS#12 в память, чтобы без пароля попробовать варианты кодировки.
      *
      * @param input поток PKCS#12; остаётся во владении вызывающего кода
      * @return байты контейнера, которые вызывающий метод очищает после чтения
