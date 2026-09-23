@@ -2,13 +2,16 @@ package com.engboost.encryptedca.certificates;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ByteArrayOutputStream;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
+import java.security.KeyStore.ProtectionParameter;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.Enumeration;
+import java.util.Arrays;
 
 /** Читает и проверяет сертификаты; входные потоки остаются у вызывающего кода. */
 final class CertificateMaterialReader {
@@ -21,26 +24,74 @@ final class CertificateMaterialReader {
      * @throws CertificateProfileException если контейнер не открылся, ключ не найден или сертификат непригоден
      */
     ClientKeyMaterial readPkcs12(InputStream input, char[] password) {
+        byte[] encoded = null;
+        try {
+            encoded = readAll(input);
+            if (password.length != 0) {
+                return readPkcs12(encoded, password);
+            }
+            return readWithoutPassword(encoded);
+        } catch (CertificateProfileException e) {
+            throw e;
+        } catch (IOException e) {
+            throw invalidContainer(e);
+        } finally {
+            if (encoded != null) {
+                Arrays.fill(encoded, (byte) 0);
+            }
+        }
+    }
+
+    /**
+     * Открывает контейнер без пароля сначала с null, затем с пустым массивом.
+     * Android PKCS#12-провайдеры по-разному трактуют эти два варианта.
+     *
+     * @param encoded содержимое PKCS#12 только в оперативной памяти
+     * @return проверенный закрытый ключ и цепочка сертификатов
+     * @throws CertificateProfileException если оба способа не открыли контейнер
+     */
+    private ClientKeyMaterial readWithoutPassword(byte[] encoded) {
+        try {
+            return readPkcs12(encoded, null);
+        } catch (CertificateProfileException withoutPassword) {
+            if (withoutPassword.getError() != CertificateProfileError.PKCS12_PASSWORD_OR_CORRUPT) {
+                throw withoutPassword;
+            }
+            try {
+                return readPkcs12(encoded, new char[0]);
+            } catch (CertificateProfileException emptyPassword) {
+                emptyPassword.addSuppressed(withoutPassword);
+                throw emptyPassword;
+            }
+        }
+    }
+
+    /**
+     * Открывает контейнер заданным представлением пароля и извлекает PrivateKeyEntry.
+     *
+     * @param encoded содержимое PKCS#12 только в оперативной памяти
+     * @param password пароль либо null для контейнера без пароля
+     * @return проверенный закрытый ключ и цепочка сертификатов
+     * @throws CertificateProfileException если контейнер или ключ не удалось прочитать
+     */
+    private ClientKeyMaterial readPkcs12(byte[] encoded, char[] password) {
         KeyStore pkcs12;
         try {
             pkcs12 = KeyStore.getInstance("PKCS12");
-            pkcs12.load(input, password);
-        } catch (IOException e) {
-            // Провайдеры сообщают IOException и при неверном пароле, и при неподдерживаемом формате.
-            throw invalidContainer(e);
-        } catch (GeneralSecurityException e) {
-            throw invalidContainer(e);
-        } catch (RuntimeException e) {
+            pkcs12.load(new java.io.ByteArrayInputStream(encoded), password);
+        } catch (IOException | GeneralSecurityException | RuntimeException e) {
+            // Провайдеры сообщают одну и ту же ошибку для пароля, формата и повреждённого контейнера.
             throw invalidContainer(e);
         }
-
         try {
             for (Enumeration<String> aliases = pkcs12.aliases(); aliases.hasMoreElements();) {
                 String alias = aliases.nextElement();
                 if (!pkcs12.isKeyEntry(alias)) {
                     continue;
                 }
-                KeyStore.Entry entry = pkcs12.getEntry(alias, new KeyStore.PasswordProtection(password));
+                ProtectionParameter protection = password == null ? null
+                        : new KeyStore.PasswordProtection(password);
+                KeyStore.Entry entry = pkcs12.getEntry(alias, protection);
                 if (entry instanceof KeyStore.PrivateKeyEntry) {
                     return validateClientEntry((KeyStore.PrivateKeyEntry) entry);
                 }
@@ -54,7 +105,25 @@ final class CertificateMaterialReader {
     }
 
     /**
-     * Разбирает CA PEM и проверяет тип, срок действия и признак CA.
+     * Копирует PKCS#12 в память, чтобы без пароля попробовать null и пустой массив.
+     *
+     * @param input поток PKCS#12; остаётся во владении вызывающего кода
+     * @return байты контейнера, которые вызывающий метод очищает после чтения
+     * @throws IOException если поток не удалось прочитать
+     */
+    private static byte[] readAll(InputStream input) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        byte[] buffer = new byte[8192];
+        int read;
+        while ((read = input.read(buffer)) != -1) {
+            output.write(buffer, 0, read);
+        }
+        Arrays.fill(buffer, (byte) 0);
+        return output.toByteArray();
+    }
+
+    /**
+     * Разбирает CA PEM и проверяет тип и срок действия сертификата доверия.
      *
      * @param input поток PEM; остаётся во владении вызывающего кода
      * @return проверенный сертификат центра сертификации
@@ -68,9 +137,6 @@ final class CertificateMaterialReader {
             }
             X509Certificate caCertificate = (X509Certificate) certificate;
             caCertificate.checkValidity();
-            if (caCertificate.getBasicConstraints() < 0) {
-                throw invalidCertificate(null);
-            }
             return caCertificate;
         } catch (CertificateProfileException e) {
             throw e;

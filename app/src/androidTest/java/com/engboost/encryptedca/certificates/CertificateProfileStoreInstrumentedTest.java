@@ -70,6 +70,20 @@ public final class CertificateProfileStoreInstrumentedTest {
     }
 
     /**
+     * Проверяет контейнер без пароля и выбранный пользователем self-signed trust anchor без CA:TRUE.
+     *
+     * @throws Exception если тестовые документы недоступны
+     */
+    @Test public void importsPkcs12WithoutPasswordAndExplicitTrustAnchor() throws Exception {
+        char[] noPassword = new char[0];
+        String profileId = store.importProfile("No password", asset("client-no-password.p12"),
+                noPassword, asset("ca-without-basic-constraints.pem"));
+        assertCleared(noPassword);
+        assertEquals("No password", store.getProfile(profileId).getDisplayName());
+        assertNotNull(store.getProfile(profileId).getCaCertificate());
+    }
+
+    /**
      * Проверяет категорию ошибки пароля, очистку массива и отсутствие записи в индексе.
      *
      * @throws Exception если тестовый asset недоступен
@@ -199,13 +213,13 @@ public final class CertificateProfileStoreInstrumentedTest {
     }
 
     /**
-     * Проверяет успешный импорт через тот же ContentResolver и ViewModel, что использует экран.
+     * Проверяет через тот же ContentResolver и ViewModel, что использует экран, импорт без пароля.
      *
      * @throws Exception если тестовые документы недоступны или импорт не завершился
      */
     @Test public void importsSelectedDocumentsThroughViewModel() throws Exception {
-        File p12File = copyAssetToCache("client.p12");
-        File caFile = copyAssetToCache("ca.pem");
+        File p12File = copyAssetToCache("client-no-password.p12");
+        File caFile = copyAssetToCache("ca-without-basic-constraints.pem");
         CertificateImportViewModel viewModel = new CertificateImportViewModel(
                 (Application) targetContext.getApplicationContext());
         CountDownLatch finished = new CountDownLatch(1);
@@ -217,11 +231,11 @@ public final class CertificateProfileStoreInstrumentedTest {
                 finished.countDown();
             }
         };
-        char[] password = PASSWORD.toCharArray();
+        char[] password = new char[0];
         try {
             InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
                 viewModel.getState().observeForever(observer);
-                viewModel.importProfile("From picker", Uri.fromFile(p12File),
+                viewModel.importProfile("No password from picker", Uri.fromFile(p12File),
                         Uri.fromFile(caFile), password);
             });
             assertTrue("Import timed out", finished.await(10, TimeUnit.SECONDS));
