@@ -8,6 +8,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.net.http.SslError
 import android.view.View
+import android.view.ViewGroup
 import android.webkit.ClientCertRequest
 import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
@@ -170,6 +171,8 @@ private fun createWebView(
     chrome: WebChromeClient,
     onDownload: (String) -> Unit,
 ) = WebView(context).apply {
+    // Without explicit MATCH_PARENT WebView sizes its viewport to the content, so 100vh layouts break.
+    layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
     settings.javaScriptEnabled = true
     // The device's pages mix https and http resources.
     settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
