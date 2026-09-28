@@ -1,4 +1,4 @@
-package com.engboost.encryptedca.core.certificates
+package com.engboost.encryptedca.core.certificates.model
 
 enum class CertificateProfileError {
     FILE_UNAVAILABLE,

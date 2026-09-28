@@ -1,9 +1,7 @@
-package com.engboost.encryptedca.core.network
+package com.engboost.encryptedca.core.network.tls
 
-import com.engboost.encryptedca.core.certificates.ClientCredentials
+import com.engboost.encryptedca.core.certificates.model.ClientCredentials
 import java.security.KeyStore
-import java.security.MessageDigest
-import java.security.cert.X509Certificate
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManagerFactory
 
@@ -22,11 +20,8 @@ fun ClientCredentials.createSslContext(): SSLContext =
         val trustManagers = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
             .apply { init(trustStore) }
             .trustManagers
+        val keyManager = ClientKeyManager(privateKey, certificateChain.toTypedArray())
         SSLContext.getInstance("TLS").apply { init(arrayOf(keyManager), trustManagers, null) }
     } catch (e: Exception) {
         throw TlsSetupException("Could not create SSLContext for profile $profileId", e)
     }
-
-/** Hex SHA-256 of the DER encoding: identifies the exact certificate a device presented. */
-fun X509Certificate.sha256Fingerprint(): String =
-    MessageDigest.getInstance("SHA-256").digest(encoded).joinToString("") { "%02x".format(it) }

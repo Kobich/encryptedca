@@ -6,9 +6,9 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.engboost.encryptedca.core.certificates.CertificateProfileError
-import com.engboost.encryptedca.core.certificates.CertificateProfileException
 import com.engboost.encryptedca.core.certificates.CertificateProfileRepository
+import com.engboost.encryptedca.core.certificates.model.CertificateProfileError
+import com.engboost.encryptedca.core.certificates.model.CertificateProfileException
 import com.engboost.encryptedca.core.certificates.wipe
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow

@@ -7,9 +7,9 @@ import android.webkit.SslErrorHandler
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.engboost.encryptedca.core.certificates.CertificateProfileException
 import com.engboost.encryptedca.core.certificates.CertificateProfileRepository
-import com.engboost.encryptedca.core.network.sha256Fingerprint
+import com.engboost.encryptedca.core.certificates.model.CertificateProfileException
+import com.engboost.encryptedca.core.network.tls.sha256Fingerprint
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -40,7 +40,7 @@ internal class WebPanelViewModel(
 
     private val credentials = viewModelScope.async {
         try {
-            repository.activeCredentials()
+            repository.loadActiveCredentials()
         } catch (e: CertificateProfileException) {
             null
         }

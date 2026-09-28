@@ -1,8 +1,11 @@
-package com.engboost.encryptedca.core.certificates
+package com.engboost.encryptedca.core.certificates.storage
 
 import android.content.Context
 import android.content.SharedPreferences
-import com.engboost.encryptedca.core.certificates.CertificateProfileError.STORAGE_FAILED
+import com.engboost.encryptedca.core.certificates.model.CertificateProfileError.STORAGE_FAILED
+import com.engboost.encryptedca.core.certificates.model.CertificateProfileException
+import com.engboost.encryptedca.core.certificates.model.ProfileIndex
+import com.engboost.encryptedca.core.certificates.model.ProfileSummary
 
 /** The profile index in SharedPreferences; file name and keys must stay stable for existing installs. */
 internal class ProfileIndexStore(context: Context) {

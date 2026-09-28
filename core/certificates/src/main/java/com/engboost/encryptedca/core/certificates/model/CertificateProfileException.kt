@@ -1,4 +1,4 @@
-package com.engboost.encryptedca.core.certificates
+package com.engboost.encryptedca.core.certificates.model
 
 class CertificateProfileException(
     val error: CertificateProfileError,
@@ -15,5 +15,3 @@ internal inline fun <T> rethrowAs(error: CertificateProfileError, message: Strin
     } catch (e: Exception) {
         throw e.asProfileException(error, message)
     }
-
-fun CharArray.wipe() = fill('\u0000')

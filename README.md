@@ -10,8 +10,8 @@ Android app that finds hardware devices in the Wi-Fi network the phone is connec
 | `:feature:certificates` | Certificate profiles: list, selection, deletion, adding a `.p12` + CA pair |
 | `:feature:scanner` | Devices found in the current Wi-Fi network and whether they pass the mTLS check |
 | `:feature:webpanel` | The device's web panel in a WebView with the profile's client certificate |
-| `:core:certificates` | Profile storage: Android Keystore, encrypted CA, profile index; `ClientCredentials` for TLS |
-| `:core:network` | Current Wi-Fi network, subnet scan, client `SSLContext` for mTLS built from `ClientCredentials` |
+| `:core:certificates` | Profile storage. `CertificateProfileRepository` at the root; `model/` public types, `storage/` Keystore key, encrypted CA and profile index, `parsing/` reading `.p12` and `ca.pem` |
+| `:core:network` | `wifi/` current Wi-Fi network (`WifiMonitor`), `tls/` client `SSLContext` and certificate fingerprint, `scan/` subnet scan (`DeviceScanner` runs `DeviceProbe` on every host) |
 
 Features don't depend on each other; `:app` wires them together. Each feature exposes only its navigation entry point.
 
@@ -22,7 +22,7 @@ Features don't depend on each other; `:app` wires them together. Each feature ex
 - The profile index (ids, names, creation time, active profile) is in SharedPreferences `certificate_profiles` and excluded from backup, since Keystore keys are never restored.
 - Passwords are never stored. `importProfile` takes ownership of the password `CharArray` and clears it.
 
-`CertificateProfileRepository` is the only public entry point; the storages behind it are internal. It runs calls one at a time, changes can't be cancelled halfway, and the index is published as a `StateFlow`. `activeCredentials()` returns a key manager limited to the selected profile's key plus its CA, so `:core:network` never sees Keystore aliases. Import order is: read PKCS#12 and CA → save the client key → encrypt CA → register the profile; a failure is rolled back step by step.
+`CertificateProfileRepository` is the only public entry point; the storages behind it are internal. It runs calls one at a time, changes can't be cancelled halfway, and the index is published as a `StateFlow`. `loadActiveCredentials()` returns the selected profile's Keystore key handle, its certificate chain and CA; `:core:network` builds the `SSLContext` from them and never sees Keystore aliases. Import order is: read PKCS#12 and CA → save the client key → encrypt CA → register the profile; a failure is rolled back step by step.
 
 An empty password opens containers exported without one: Android's PKCS#12 provider expects a single NUL character for them. The selected CA may be a legacy self-signed certificate without `BasicConstraints CA:TRUE`.
 
@@ -30,7 +30,7 @@ Sample certificates for manual import are in `sample-certificates/` (password `1
 
 ## Device scan
 
-The scan uses the Wi-Fi network from `ConnectivityManager` (a network without internet access counts too) and binds sockets to it, so traffic doesn't leak to mobile data. For every host of the subnet (narrowed to /24 if wider) it opens a TCP connection to port 443 and, if the port is open, performs a TLS handshake with the active profile. A completed handshake marks the device as trusted. A host with the port closed is still listed when the connection is refused or it answers `ping`. Devices are addressed by IP, so the server certificate is checked only against the profile's CA.
+The scan uses the Wi-Fi network from `ConnectivityManager` (a network without internet access counts too) and binds sockets to it, so traffic doesn't leak to mobile data. For every host of the subnet (narrowed to /24 if wider) it opens a TCP connection to port 443 and, if the port is open, performs a TLS handshake with the active profile. A completed handshake marks the device as trusted. A host whose port can't be reached is still listed when the connection is refused or it answers `ping`. Ping runs as a separate process and follows the default route, not the Wi-Fi network, so it may miss hosts when Wi-Fi isn't the default; it never affects whether a device is trusted. Devices are addressed by IP, so the server certificate is checked only against the profile's CA.
 
 ## Device web panel
 

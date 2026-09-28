@@ -48,7 +48,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.engboost.encryptedca.core.certificates.CertificateProfileError
+import com.engboost.encryptedca.core.certificates.model.CertificateProfileError
 import com.engboost.encryptedca.feature.certificates.R
 import com.engboost.encryptedca.feature.certificates.messageRes
 

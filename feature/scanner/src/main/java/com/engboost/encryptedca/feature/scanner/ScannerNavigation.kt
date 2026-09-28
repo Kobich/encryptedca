@@ -7,7 +7,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import com.engboost.encryptedca.core.certificates.CertificateProfileRepository
-import com.engboost.encryptedca.core.network.DeviceScanner
+import com.engboost.encryptedca.core.network.scan.DeviceScanner
+import com.engboost.encryptedca.core.network.wifi.WifiMonitor
 
 const val SCANNER_ROUTE = "scanner"
 
@@ -18,7 +19,7 @@ fun NavGraphBuilder.scannerScreen(
 ) {
     composable(SCANNER_ROUTE) {
         val context = LocalContext.current
-        val viewModel = viewModel { ScannerViewModel(repository, DeviceScanner(context.applicationContext)) }
+        val viewModel = viewModel { ScannerViewModel(repository, WifiMonitor(context.applicationContext), DeviceScanner()) }
         val state by viewModel.state.collectAsStateWithLifecycle()
         ScannerScreen(
             state = state,

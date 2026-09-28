@@ -1,7 +1,7 @@
 package com.engboost.encryptedca.feature.certificates
 
 import androidx.annotation.StringRes
-import com.engboost.encryptedca.core.certificates.CertificateProfileError
+import com.engboost.encryptedca.core.certificates.model.CertificateProfileError
 
 @StringRes
 internal fun CertificateProfileError.messageRes(): Int = when (this) {

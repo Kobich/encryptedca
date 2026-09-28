@@ -3,13 +3,14 @@ package com.engboost.encryptedca.feature.scanner
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.engboost.encryptedca.core.certificates.CertificateProfileException
 import com.engboost.encryptedca.core.certificates.CertificateProfileRepository
-import com.engboost.encryptedca.core.network.DeviceScanner
-import com.engboost.encryptedca.core.network.FoundDevice
-import com.engboost.encryptedca.core.network.LocalNetwork
-import com.engboost.encryptedca.core.network.TlsSetupException
-import com.engboost.encryptedca.core.network.createSslContext
+import com.engboost.encryptedca.core.certificates.model.CertificateProfileException
+import com.engboost.encryptedca.core.network.scan.DeviceScanner
+import com.engboost.encryptedca.core.network.scan.FoundDevice
+import com.engboost.encryptedca.core.network.tls.TlsSetupException
+import com.engboost.encryptedca.core.network.tls.createSslContext
+import com.engboost.encryptedca.core.network.wifi.LocalNetwork
+import com.engboost.encryptedca.core.network.wifi.WifiMonitor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -37,6 +38,7 @@ internal data class ScannerState(
 
 internal class ScannerViewModel(
     private val repository: CertificateProfileRepository,
+    private val wifiMonitor: WifiMonitor,
     private val scanner: DeviceScanner,
 ) : ViewModel() {
 
@@ -49,7 +51,7 @@ internal class ScannerViewModel(
         // A new Wi-Fi network, another selected profile or a manual rescan restarts the scan.
         val activeProfile = repository.index.map { it?.activeProfileId }.distinctUntilChanged()
         viewModelScope.launch {
-            combine(scanner.wifi(), activeProfile, rescans) { wifi, _, _ -> wifi }.collectLatest { wifi -> scan(wifi) }
+            combine(wifiMonitor.observeNetwork(), activeProfile, rescans) { wifi, _, _ -> wifi }.collectLatest { wifi -> scan(wifi) }
         }
     }
 
@@ -58,7 +60,7 @@ internal class ScannerViewModel(
     private suspend fun scan(wifi: LocalNetwork?) {
         if (wifi == null) return showProblem(null, ScanProblem.NO_WIFI)
         val sslContext = try {
-            repository.activeCredentials()?.createSslContext()
+            repository.loadActiveCredentials()?.createSslContext()
         } catch (e: CertificateProfileException) {
             return showProblem(wifi, ScanProblem.PROFILE_UNAVAILABLE)
         } catch (e: TlsSetupException) {

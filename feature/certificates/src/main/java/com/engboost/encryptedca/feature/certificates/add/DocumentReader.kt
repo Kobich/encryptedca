@@ -3,8 +3,8 @@ package com.engboost.encryptedca.feature.certificates.add
 import android.content.ContentResolver
 import android.net.Uri
 import android.provider.OpenableColumns
-import com.engboost.encryptedca.core.certificates.CertificateProfileError
-import com.engboost.encryptedca.core.certificates.CertificateProfileException
+import com.engboost.encryptedca.core.certificates.model.CertificateProfileError
+import com.engboost.encryptedca.core.certificates.model.CertificateProfileException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.IOException

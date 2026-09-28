@@ -3,10 +3,10 @@ package com.engboost.encryptedca.feature.certificates.list
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.engboost.encryptedca.core.certificates.CertificateProfileError
-import com.engboost.encryptedca.core.certificates.CertificateProfileException
 import com.engboost.encryptedca.core.certificates.CertificateProfileRepository
-import com.engboost.encryptedca.core.certificates.ProfileSummary
+import com.engboost.encryptedca.core.certificates.model.CertificateProfileError
+import com.engboost.encryptedca.core.certificates.model.CertificateProfileException
+import com.engboost.encryptedca.core.certificates.model.ProfileSummary
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

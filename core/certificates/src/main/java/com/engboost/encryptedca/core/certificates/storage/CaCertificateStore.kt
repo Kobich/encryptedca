@@ -1,10 +1,12 @@
-package com.engboost.encryptedca.core.certificates
+package com.engboost.encryptedca.core.certificates.storage
 
 import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
-import com.engboost.encryptedca.core.certificates.CertificateProfileError.PROFILE_INCOMPLETE
-import com.engboost.encryptedca.core.certificates.CertificateProfileError.STORAGE_FAILED
+import com.engboost.encryptedca.core.certificates.model.CertificateProfileError.PROFILE_INCOMPLETE
+import com.engboost.encryptedca.core.certificates.model.CertificateProfileError.STORAGE_FAILED
+import com.engboost.encryptedca.core.certificates.model.CertificateProfileException
+import com.engboost.encryptedca.core.certificates.model.rethrowAs
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -19,7 +21,7 @@ import javax.crypto.spec.GCMParameterSpec
  * Stores the CA DER as `[IV length][IV][AES-GCM ciphertext]` in `noBackupFilesDir`.
  * The format and key alias must stay compatible with profiles already on devices.
  */
-internal class EncryptedCaStorage(context: Context) {
+internal class CaCertificateStore(context: Context) {
     private val directory = context.noBackupFilesDir
 
     fun write(profileId: String, caCertificate: X509Certificate) {
@@ -65,11 +67,11 @@ internal class EncryptedCaStorage(context: Context) {
         }
     }
 
-    private fun existingKey(): SecretKey = androidKeyStore().getKey(KEY_ALIAS, null) as? SecretKey
+    private fun existingKey(): SecretKey = openAndroidKeyStore().getKey(KEY_ALIAS, null) as? SecretKey
         ?: throw CertificateProfileException(PROFILE_INCOMPLETE, "CA encryption key is missing")
 
     private fun getOrCreateKey(): SecretKey =
-        androidKeyStore().getKey(KEY_ALIAS, null) as? SecretKey
+        openAndroidKeyStore().getKey(KEY_ALIAS, null) as? SecretKey
             ?: KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEY_STORE).run {
                 init(
                     KeyGenParameterSpec.Builder(KEY_ALIAS, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
