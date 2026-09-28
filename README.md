@@ -1,20 +1,37 @@
-# Certificate profile prototype
+# EncryptedCA
 
-`CertificateProfileStore` coordinates profile import and the SharedPreferences index.
-`CertificateMaterialReader` reads and validates PKCS#12 and CA PEM input.
-`EncryptedCaStorage` preserves the existing encrypted CA file format and Android Keystore AES key.
-`CertificateImportViewModel` owns a running import, while `CertificateProfileImportFragment` only collects input and renders state.
+Android app that finds hardware devices in the Wi-Fi network the phone is connected to and checks them over mutual TLS. The device is always the TLS client: it authenticates with the key from a `.p12` and trusts a server only if its certificate chains to the profile's `ca.pem`.
 
-The app opens `CertificateProfileListFragment`. `CertificateProfileListViewModel` loads the index and runs selection/deletion off the UI thread. `ProfileConfirmationDialog` preserves a pending confirmation across rotation. Import is a separate fragment on the back stack; completing it returns to the list without selecting the new profile. Back navigation from the form is available before import; while the write is running, it asks the user to wait. Deleting the active profile clears the selection. Existing index, aliases and CA files are unchanged.
+## Modules
 
-Import order: read PKCS#12 and CA → save the client key → encrypt CA → register the profile. The rollback is compensating, not an atomic transaction across Android Keystore, file storage and SharedPreferences.
+| Module | Contents |
+| --- | --- |
+| `:app` | `Application`, `MainActivity`, navigation between features |
+| `:feature:certificates` | Certificate profiles: list, selection, deletion, adding a `.p12` + CA pair |
+| `:feature:scanner` | Devices found in the current Wi-Fi network and whether they pass the mTLS check |
+| `:feature:webpanel` | The device's web panel in a WebView with the profile's client certificate |
+| `:core:certificates` | Profile storage: Android Keystore, encrypted CA, profile index; `ClientCredentials` for TLS |
+| `:core:network` | Current Wi-Fi network, subnet scan, client `SSLContext` for mTLS built from `ClientCredentials` |
 
-The caller owns input streams and closes them. `CertificateProfileStore.importProfile` takes ownership of its password `char[]` and clears it. The ViewModel also clears the array if a document cannot be opened before the store receives it. Passwords are not saved in UI state, bundles, files or logs.
+Features don't depend on each other; `:app` wires them together. Each feature exposes only its navigation entry point.
 
-An empty password field supports PKCS#12 containers exported without a password. Android providers and PKCS#12 exporters differ between `null`, an empty array and one zero character, so the reader safely tries these representations only for an empty field. The selected CA PEM is an explicit trust anchor: it is checked as X.509 and for validity, but it may be a legacy self-signed issuer certificate without the `BasicConstraints CA:TRUE` extension.
+## Certificate storage
 
-The instrumentation fixtures are in `app/src/androidTest/assets`. Run the device tests with:
+- The `.p12` is not kept. Its private key and chain go into Android Keystore under `mtls_client_<profileId>`, not extractable. RSA keys also allow raw private-key operations: Conscrypt needs them for RSA-PSS in TLS 1.3.
+- The CA is not kept as PEM. Its DER is encrypted with AES-256-GCM (Keystore key `mtls_ca_storage_key`) and stored as `[IV length][IV][ciphertext]` in `noBackupFilesDir/<profileId>.ca.enc`.
+- The profile index (ids, names, creation time, active profile) is in SharedPreferences `certificate_profiles` and excluded from backup, since Keystore keys are never restored.
+- Passwords are never stored. `importProfile` takes ownership of the password `CharArray` and clears it.
 
-`gradlew connectedDebugAndroidTest`
+`CertificateProfileRepository` is the only public entry point; the storages behind it are internal. It runs calls one at a time, changes can't be cancelled halfway, and the index is published as a `StateFlow`. `activeCredentials()` returns a key manager limited to the selected profile's key plus its CA, so `:core:network` never sees Keystore aliases. Import order is: read PKCS#12 and CA → save the client key → encrypt CA → register the profile; a failure is rolled back step by step.
 
-This command builds and executes instrumentation tests on a connected Android device or emulator.
+An empty password opens containers exported without one: Android's PKCS#12 provider expects a single NUL character for them. The selected CA may be a legacy self-signed certificate without `BasicConstraints CA:TRUE`.
+
+Sample certificates for manual import are in `sample-certificates/` (password `1234`).
+
+## Device scan
+
+The scan uses the Wi-Fi network from `ConnectivityManager` (a network without internet access counts too) and binds sockets to it, so traffic doesn't leak to mobile data. For every host of the subnet (narrowed to /24 if wider) it opens a TCP connection to port 443 and, if the port is open, performs a TLS handshake with the active profile. A completed handshake marks the device as trusted. A host with the port closed is still listed when the connection is refused or it answers `ping`. Devices are addressed by IP, so the server certificate is checked only against the profile's CA.
+
+## Device web panel
+
+Tapping a device that passed the check opens `https://<ip>:443/` in a WebView. The scan remembers the SHA-256 of the certificate the device presented over mTLS; WebView doesn't know the profile's CA, reports the device as an SSL error, and the page proceeds only with that exact certificate on that IP. The client key is given only to the device's host, links to other hosts open in the browser, and WebView's remembered client-certificate choice is cleared first, so a profile change takes effect. Screenshots the panel offers as `data:image/...` downloads are saved to DCIM.

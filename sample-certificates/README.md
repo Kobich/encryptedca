@@ -1,20 +1,18 @@
-# Тестовые сертификаты
+# Sample certificates
 
-Эта папка содержит самодостаточный тестовый mTLS-набор для ручного импорта через проводник Android:
+A self-contained mTLS pair for importing by hand through the Android file picker:
 
-- `client.p12` — клиентский закрытый ключ и клиентский сертификат;
-- `ca.pem` — самоподписанный сертификат центра сертификации.
+- `client.p12` — client private key and certificate;
+- `ca.pem` — self-signed certificate authority.
 
-Пароль контейнера `client.p12`: `1234`.
+The `client.p12` password is `1234`.
 
-Клиентский ключ — RSA 4096. Контейнер создан командой:
+The client key is RSA 4096. The container was created with:
 
 ```shell
 openssl pkcs12 -export -legacy -out client.p12 -inkey client_key.pem -in client.pem
 ```
 
-Ключ защищён 3DES, сертификат — RC2, MAC — SHA-1. CA передаётся отдельно
-и в `.p12` не включён.
-Это тестовый формат из примера импорта, а не рекомендация для production.
+The key is protected with 3DES, the certificate with RC2, the MAC is SHA-1. The CA is shipped separately and is not included in the `.p12`. This is the legacy format the import has to handle, not a recommendation for production.
 
-Сертификаты предназначены только для локального прототипа. Не используйте их в production и не добавляйте реальные ключи в репозиторий.
+For local development only. Don't use these certificates in production and don't commit real keys.
