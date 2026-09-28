@@ -1,28 +1,15 @@
 plugins {
-    alias(libs.plugins.android.application)
+    alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.compose)
 }
 
 android {
-    namespace = "com.engboost.encryptedca"
+    namespace = "com.engboost.encryptedca.feature.certificates"
     compileSdk {
         version = release(37)
     }
-
     defaultConfig {
-        applicationId = "com.engboost.encryptedca"
         minSdk = 31
-        targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
-    }
-
-    buildTypes {
-        release {
-            optimization {
-                enable = false
-            }
-        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -35,13 +22,17 @@ android {
 
 dependencies {
     implementation(project(":core:certificates"))
-    implementation(project(":feature:certificates"))
-    implementation(project(":feature:scanner"))
-    implementation(project(":feature:webpanel"))
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
+    implementation(libs.compose.ui.tooling.preview)
     implementation(libs.compose.material3)
+    implementation(libs.compose.material.icons.core)
+    debugImplementation(libs.compose.ui.tooling)
+
+    implementation(libs.kotlinx.coroutines.android)
     implementation(libs.activity.compose)
+    implementation(libs.lifecycle.viewmodel.compose)
+    implementation(libs.lifecycle.runtime.compose)
     implementation(libs.navigation.compose)
 }

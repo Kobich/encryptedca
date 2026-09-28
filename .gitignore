@@ -1,15 +1,21 @@
-*.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
+# Build
+build/
 /captures
 .externalNativeBuild
 .cxx
+
+# Gradle and Kotlin caches
+.gradle
+/.gradle-user-home/
+.kotlin/
+
+# Local Android SDK home (debug keystore etc.)
+/.android-user-home/
+
+# IDE
+/.idea/
+*.iml
+
+# Machine-specific
 local.properties
+.DS_Store

@@ -24,4 +24,9 @@ dependencyResolutionManagement {
 
 rootProject.name = "encryptedca"
 include(":app")
+include(":core:certificates")
+include(":core:network")
+include(":feature:certificates")
+include(":feature:scanner")
+include(":feature:webpanel")
  
