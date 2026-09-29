@@ -20,7 +20,6 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -64,7 +63,6 @@ internal fun ScannerScreen(
         bottomBar = { ScanStatus(state) },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            if (state.scanning) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             LazyColumn(contentPadding = PaddingValues(start = 24.dp, top = 16.dp, end = 24.dp, bottom = 24.dp)) {
                 item { ScanHeader(state, onOpenCertificates, modifier = Modifier.padding(bottom = 16.dp)) }
                 itemsIndexed(state.devices, key = { _, device -> device.ip }) { index, device ->

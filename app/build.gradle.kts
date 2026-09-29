@@ -15,6 +15,10 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
+        // Phones only: x86 emulator builds of the ML Kit QR library would add ~12 MB.
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
     }
 
     buildTypes {
@@ -35,6 +39,7 @@ android {
 
 dependencies {
     implementation(project(":core:certificates"))
+    implementation(libs.kotlinx.coroutines.android)
     implementation(project(":feature:certificates"))
     implementation(project(":feature:scanner"))
     implementation(project(":feature:webpanel"))
