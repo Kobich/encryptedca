@@ -11,10 +11,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        val repository = (application as EncryptedCaApplication).certificateProfiles
         setContent {
             EncryptedCaTheme {
-                AppNavHost(repository)
+                AppNavHost()
             }
         }
     }

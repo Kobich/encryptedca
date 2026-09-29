@@ -38,11 +38,23 @@ android {
 }
 
 dependencies {
-    implementation(project(":core:certificates"))
+    implementation(project(":core:certificates:api"))
+    implementation(project(":core:certificates:impl"))
+    implementation(project(":core:network:impl"))
+
+    implementation(project(":feature:certificates:api"))
+    implementation(project(":feature:certificates:impl"))
+    implementation(project(":feature:certificates:ui:impl"))
+    implementation(project(":feature:scanner:api"))
+    implementation(project(":feature:scanner:impl"))
+    implementation(project(":feature:scanner:ui:impl"))
+    implementation(project(":feature:webpanel:api"))
+    implementation(project(":feature:webpanel:impl"))
+    implementation(project(":feature:webpanel:ui:impl"))
+
     implementation(libs.kotlinx.coroutines.android)
-    implementation(project(":feature:certificates"))
-    implementation(project(":feature:scanner"))
-    implementation(project(":feature:webpanel"))
+    implementation(libs.koin.android)
+    implementation(libs.koin.androidx.compose)
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)

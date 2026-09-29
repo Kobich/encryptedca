@@ -4,29 +4,37 @@ Android app that finds hardware devices in the Wi-Fi network the phone is connec
 
 ## Modules
 
+Every core module is split into `api` (interfaces and models) and `impl` (implementations). Every feature has four modules:
+
+| Module | Contents | Depends on |
+| --- | --- | --- |
+| `feature:<x>:api` | Route and `navigateTo<X>()`: all other modules need to open the feature | — |
+| `feature:<x>:impl` | How the feature works, no Compose UI: `domain/`, `data/`, `presentation/`, `di/` | `core:*:api` |
+| `feature:<x>:ui:api` | `interface <X>Ui { @Composable fun Content(...) }` | — |
+| `feature:<x>:ui:impl` | `<X>UiImpl` and all screens | `feature:<x>:impl`, `feature:<x>:ui:api` |
+
+`:app` starts Koin with every module's `di` and hosts the navigation: it takes each `<X>Ui` from Koin and calls `Content`. Features don't depend on each other.
+
 | Module | Contents |
 | --- | --- |
-| `:app` | `Application`, `MainActivity`, navigation between features |
-| `:feature:certificates` | Certificate profiles: list, selection, deletion, adding a `.p12` + CA pair |
-| `:feature:scanner` | Devices found in the current Wi-Fi network and whether they pass the mTLS check |
+| `:core:certificates` | `CertificateProfileRepository` and profile models in `api`; Keystore key, encrypted CA, profile index and `.p12`/CA parsing in `impl` |
+| `:core:network` | `WifiMonitor`, `DeviceScanner`, `SslContextFactory` and their models in `api`; implementations in `impl` |
+| `:feature:certificates` | Certificate profiles: list, selection, deletion, adding from files, camera QR or photo QR |
+| `:feature:scanner` | Devices in the current Wi-Fi network and whether they pass the mTLS check |
 | `:feature:webpanel` | The device's web panel in a WebView with the profile's client certificate |
-| `:core:certificates` | Profile storage. `CertificateProfileRepository` at the root; `model/` public types, `storage/` Keystore key, encrypted CA and profile index, `parsing/` reading `.p12` and `ca.pem` |
-| `:core:network` | `wifi/` current Wi-Fi network (`WifiMonitor`), `tls/` client `SSLContext` and certificate fingerprint, `scan/` subnet scan (`DeviceScanner` runs `DeviceProbe` on every host) |
 
-Features don't depend on each other; `:app` wires them together. Each feature exposes only its navigation entry point.
+### Inside a feature
 
-### Feature layout
-
-Every feature is laid out the same way, so a file's place tells what it does:
-
-| File or folder | Contents |
+| Folder | Contents |
 | --- | --- |
-| `<Feature>Navigation.kt` | The feature's only public entry point: routes, ViewModel creation, navigation |
-| `<Screen>Screen.kt` | The screen. Takes `state`, one `onAction` and navigation callbacks |
-| `<Screen>State.kt` | What the screen shows |
-| `<Screen>Action.kt` | Everything the user can do on the screen, handled by `<Screen>ViewModel.onAction` |
-| `<Screen>ViewModel.kt` | Turns actions into state. Heavy work lives in its own classes, e.g. `ProfileImporter`, `QrProfileCollector` |
-| `components/` | Parts of a screen's UI |
+| `impl/domain/model` | The feature's own types |
+| `impl/domain/repository` | Interfaces for data the feature reads or writes |
+| `impl/domain/interactor` | One interactor per screen with everything its ViewModel needs, e.g. `AddProfileInteractor`, `ScannerInteractor`. A ViewModel sees only its interactor |
+| `impl/data` | Implementations of the `domain/repository` interfaces (ContentResolver, ML Kit, MediaStore) |
+| `impl/presentation/<screen>` | `<Screen>ViewModel`, `<Screen>State` (what the screen shows), `<Screen>Action` (everything the user can do) |
+| `impl/di` | Koin module of the feature's logic |
+| `ui/impl/<screen>` | `<Screen>Screen`, taking `state`, one `onAction` and navigation callbacks; `components/` for its parts |
+| `ui/impl/di` | Koin module binding `<X>Ui` |
 
 Comments: only a short header at the top of a file whose purpose isn't obvious from the code.
 
