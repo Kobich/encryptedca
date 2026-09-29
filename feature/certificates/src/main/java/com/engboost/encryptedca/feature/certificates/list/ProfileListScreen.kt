@@ -28,15 +28,19 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.engboost.encryptedca.feature.certificates.R
+import com.engboost.encryptedca.feature.certificates.add.ProfileSource
 import com.engboost.encryptedca.feature.certificates.messageRes
 import java.text.DateFormat
 import java.util.Date
@@ -45,8 +49,7 @@ import java.util.Date
 @Composable
 internal fun ProfileListScreen(
     state: ProfileListState,
-    onAddProfile: () -> Unit,
-    onAddProfileFromQr: () -> Unit,
+    onAddProfile: (ProfileSource) -> Unit,
     onBack: () -> Unit,
     onSelect: (ProfileItem) -> Unit,
     onDelete: (ProfileItem) -> Unit,
@@ -55,6 +58,17 @@ internal fun ProfileListScreen(
     onRetryLoad: () -> Unit,
 ) {
     state.pendingAction?.let { ConfirmationDialog(it, onConfirm, onDismiss) }
+
+    var choosingSource by rememberSaveable { mutableStateOf(false) }
+    if (choosingSource) {
+        ProfileSourceSheet(
+            onPick = { source ->
+                choosingSource = false
+                onAddProfile(source)
+            },
+            onDismiss = { choosingSource = false },
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -71,13 +85,8 @@ internal fun ProfileListScreen(
             )
         },
         floatingActionButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                FloatingActionButton(onClick = onAddProfileFromQr) {
-                    Icon(painterResource(R.drawable.ic_qr_code), contentDescription = stringResource(R.string.add_profile_qr))
-                }
-                FloatingActionButton(onClick = onAddProfile) {
-                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_profile))
-                }
+            FloatingActionButton(onClick = { choosingSource = true }) {
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_profile))
             }
         },
     ) { padding ->
@@ -239,7 +248,6 @@ private fun ProfileListScreenPreview() {
                 listLoad = ListLoad.Loaded,
             ),
             onAddProfile = {},
-            onAddProfileFromQr = {},
             onBack = {},
             onSelect = {},
             onDelete = {},

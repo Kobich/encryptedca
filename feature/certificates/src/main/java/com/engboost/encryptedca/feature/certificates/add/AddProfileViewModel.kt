@@ -21,42 +21,42 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * Picked document URIs survive process death in [savedState]. A profile read from QR codes stays only
- * in memory and is wiped when it's replaced or the screen goes away. The password never leaves the
- * screen until import.
+ * Adds one profile from the [source] picked on the list. Picked document URIs survive process death in
+ * [savedState]. A profile read from QR codes stays only in memory and is wiped when it's replaced or the
+ * screen goes away. The password never leaves the screen until import.
  */
 internal class AddProfileViewModel(
     private val repository: CertificateProfileRepository,
     private val documents: DocumentReader,
     private val qrImages: QrImageReader,
     private val savedState: SavedStateHandle,
-    startWithQr: Boolean,
+    source: ProfileSource,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(AddProfileState())
+    private val _state = MutableStateFlow(AddProfileState(source))
     val state: StateFlow<AddProfileState> = _state.asStateFlow()
 
     private val qrAssembler = QrProfileAssembler()
     private var qrProfile: QrProfile? = null
 
     init {
-        savedState.get<Uri>(KEY_P12)?.let(::selectP12)
-        savedState.get<Uri>(KEY_CA)?.let(::selectCa)
-        if (startWithQr) startQrScan()
+        when (source) {
+            ProfileSource.FILES -> {
+                savedState.get<Uri>(KEY_P12)?.let(::selectP12)
+                savedState.get<Uri>(KEY_CA)?.let(::selectCa)
+            }
+            ProfileSource.QR_CAMERA, ProfileSource.QR_PHOTOS -> startQrCollecting()
+        }
     }
 
     fun selectP12(uri: Uri) = select(KEY_P12, uri) { state, document -> state.copy(p12 = document) }
 
     fun selectCa(uri: Uri) = select(KEY_CA, uri) { state, document -> state.copy(ca = document) }
 
-    fun startQrScan() {
+    /** Starts over: also after codes that didn't form a valid profile. */
+    fun startQrCollecting() {
         clearQr()
         _state.update { it.copy(qr = QrStatus.Collecting()) }
-    }
-
-    /** Closing the scanner before all codes are read drops what was collected. */
-    fun closeQrScan() {
-        if (_state.value.qr is QrStatus.Collecting) clearQr()
     }
 
     /** Codes from one camera frame; they may belong to other profiles or not be ours at all. */
@@ -65,19 +65,18 @@ internal class AddProfileViewModel(
         if (addQrCodes(texts)) showQrProgress()
     }
 
-    fun readQrImage(uri: Uri) {
+    /** Several photos at once; together or over several picks they must hold all codes of the profile. */
+    fun readQrPhotos(uris: List<Uri>) {
         viewModelScope.launch {
-            val texts = qrImages.read(uri)
+            val texts = uris.flatMap { qrImages.read(it) }
             if (_state.value.qr !is QrStatus.Collecting) return@launch
             if (addQrCodes(texts)) {
                 showQrProgress()
             } else {
-                _state.update { it.copy(qr = collectingStatus(imageWithoutNewCodes = true)) }
+                _state.update { it.copy(qr = collectingStatus(photosWithoutNewCodes = true)) }
             }
         }
     }
-
-    fun useFilesInsteadOfQr() = clearQr()
 
     /** Takes ownership of [password] and wipes it, even when the import doesn't start. */
     fun importProfile(displayName: String, password: CharArray) {
@@ -104,7 +103,7 @@ internal class AddProfileViewModel(
     }
 
     override fun onCleared() {
-        qrProfile?.wipe()
+        clearQr()
     }
 
     /**
@@ -112,7 +111,6 @@ internal class AddProfileViewModel(
      * for a document that has been replaced since is dropped.
      */
     private fun select(key: String, uri: Uri, show: (AddProfileState, PickedDocument) -> AddProfileState) {
-        clearQr()
         savedState[key] = uri
         _state.update { show(it, PickedDocument(uri, name = null)) }
         viewModelScope.launch {
@@ -137,24 +135,17 @@ internal class AddProfileViewModel(
             QrStatus.Invalid
         }
         qrAssembler.reset()
-        if (status == QrStatus.Ready) clearFiles()
         _state.update { it.copy(qr = status) }
     }
 
-    private fun collectingStatus(imageWithoutNewCodes: Boolean = false) =
-        QrStatus.Collecting(qrAssembler.received, qrAssembler.total, imageWithoutNewCodes)
+    private fun collectingStatus(photosWithoutNewCodes: Boolean = false) =
+        QrStatus.Collecting(qrAssembler.received, qrAssembler.total, photosWithoutNewCodes)
 
     private fun clearQr() {
         qrAssembler.reset()
         qrProfile?.wipe()
         qrProfile = null
         _state.update { it.copy(qr = null) }
-    }
-
-    private fun clearFiles() {
-        savedState.remove<Uri>(KEY_P12)
-        savedState.remove<Uri>(KEY_CA)
-        _state.update { it.copy(p12 = null, ca = null) }
     }
 
     private suspend fun importFromFiles(displayName: String?, p12Uri: Uri, caUri: Uri, password: CharArray): String {
