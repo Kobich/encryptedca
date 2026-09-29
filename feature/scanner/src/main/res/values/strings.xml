@@ -10,6 +10,7 @@
     <string name="scanner_no_wifi">Подключитесь к Wi-Fi сети с устройствами</string>
     <string name="scanner_no_profile">Выберите сертификат, чтобы проверять устройства</string>
     <string name="scanner_profile_unavailable">Не удалось загрузить выбранный сертификат. Выберите его заново</string>
+    <string name="scanner_failed">Поиск прервался из-за ошибки. Попробуйте ещё раз</string>
     <string name="select_certificate">Выбрать сертификат</string>
     <string name="device_ip">IP: %1$s</string>
 </resources>

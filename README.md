@@ -35,3 +35,7 @@ The scan uses the Wi-Fi network from `ConnectivityManager` (a network without in
 ## Device web panel
 
 Tapping a device that passed the check opens `https://<ip>:443/` in a WebView. The scan remembers the SHA-256 of the certificate the device presented over mTLS; WebView doesn't know the profile's CA, reports the device as an SSL error, and the page proceeds only with that exact certificate on that IP. The client key is given only to the device's host, links to other hosts open in the browser, and WebView's remembered client-certificate choice is cleared first, so a profile change takes effect. Screenshots the panel offers as `data:image/...` downloads are saved to DCIM.
+
+## Import from QR codes
+
+Instead of two files, the `.p12` and the CA can be read from a set of QR codes, in any order and several per camera frame, or from an image with the codes. The camera uses CameraX with the ML Kit QR model bundled in the APK, so Google Play services aren't required. The code format is described in [docs/qr-profile-format.md](docs/qr-profile-format.md); the `.p12` password is never in the codes and is entered as usual. The collected profile stays in memory only.

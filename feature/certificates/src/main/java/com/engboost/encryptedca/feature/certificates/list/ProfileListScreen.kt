@@ -50,6 +50,7 @@ internal fun ProfileListScreen(
     onDelete: (ProfileItem) -> Unit,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
+    onRetryLoad: () -> Unit,
 ) {
     state.pendingAction?.let { ConfirmationDialog(it, onConfirm, onDismiss) }
 
@@ -82,7 +83,7 @@ internal fun ProfileListScreen(
             contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item { ListHeader(state) }
+            item { ListHeader(state, onRetryLoad) }
             items(state.profiles, key = { it.id }) { profile ->
                 ProfileCard(
                     profile = profile,
@@ -96,7 +97,7 @@ internal fun ProfileListScreen(
 }
 
 @Composable
-private fun ListHeader(state: ProfileListState) {
+private fun ListHeader(state: ProfileListState, onRetryLoad: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
             text = stringResource(
@@ -104,18 +105,24 @@ private fun ListHeader(state: ProfileListState) {
             ),
             style = MaterialTheme.typography.titleMedium,
         )
-        val error = state.error
+        val listLoad = state.listLoad
+        if (listLoad is ListLoad.Failed) {
+            Text(stringResource(listLoad.error.messageRes()), color = MaterialTheme.colorScheme.error)
+            TextButton(onClick = onRetryLoad) { Text(stringResource(R.string.retry)) }
+            return@Column
+        }
+        val error = state.changeError
         Text(
             text = stringResource(
                 when {
-                    state.loading -> R.string.profiles_loading
+                    listLoad == ListLoad.Loading || state.changing -> R.string.profiles_loading
                     error != null -> error.messageRes()
                     state.profiles.isEmpty() -> R.string.profiles_empty
                     else -> R.string.profiles_hint
                 },
             ),
             style = MaterialTheme.typography.bodyMedium,
-            color = if (error != null && !state.loading) {
+            color = if (error != null && !state.changing) {
                 MaterialTheme.colorScheme.error
             } else {
                 MaterialTheme.colorScheme.onSurfaceVariant
@@ -224,7 +231,7 @@ private fun ProfileListScreenPreview() {
                     ProfileItem("b", null, createdAt = 0),
                 ),
                 activeProfileId = "a",
-                loaded = true,
+                listLoad = ListLoad.Loaded,
             ),
             onAddProfile = {},
             onBack = {},
@@ -232,6 +239,7 @@ private fun ProfileListScreenPreview() {
             onDelete = {},
             onConfirm = {},
             onDismiss = {},
+            onRetryLoad = {},
         )
     }
 }

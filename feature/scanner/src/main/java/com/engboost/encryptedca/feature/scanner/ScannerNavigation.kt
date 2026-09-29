@@ -12,7 +12,7 @@ import com.engboost.encryptedca.core.network.wifi.WifiMonitor
 
 const val SCANNER_ROUTE = "scanner"
 
-fun NavGraphBuilder.scannerScreen(
+fun NavGraphBuilder.scannerDestination(
     repository: CertificateProfileRepository,
     onOpenCertificates: () -> Unit,
     onOpenDevice: (ip: String, serverFingerprint: String) -> Unit,

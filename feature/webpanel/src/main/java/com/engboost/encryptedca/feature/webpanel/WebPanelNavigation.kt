@@ -17,7 +17,7 @@ private const val WEB_PANEL_ROUTE = "web-panel/{$HOST_ARG}/{$FINGERPRINT_ARG}"
 fun NavController.navigateToWebPanel(host: String, serverFingerprint: String) =
     navigate("web-panel/$host/$serverFingerprint")
 
-fun NavGraphBuilder.webPanelScreen(
+fun NavGraphBuilder.webPanelDestination(
     repository: CertificateProfileRepository,
     onClose: () -> Unit,
 ) {
@@ -29,12 +29,13 @@ fun NavGraphBuilder.webPanelScreen(
         val state by viewModel.state.collectAsStateWithLifecycle()
         WebPanelScreen(
             state = state,
+            onReload = viewModel::onReload,
             onPageStarted = viewModel::onPageStarted,
             onPageFinished = viewModel::onPageFinished,
             onClientCertRequest = viewModel::onClientCertRequest,
             onSslError = viewModel::onSslError,
             onDownload = viewModel::onDownload,
-            onMessageShown = viewModel::onMessageShown,
+            onImageMessageShown = viewModel::onImageMessageShown,
             onClose = onClose,
         )
     }

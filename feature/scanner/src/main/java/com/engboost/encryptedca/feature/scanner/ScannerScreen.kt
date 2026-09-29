@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
@@ -63,23 +65,15 @@ internal fun ScannerScreen(
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (state.scanning) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            LazyColumn(
-                contentPadding = PaddingValues(start = 24.dp, top = 16.dp, end = 24.dp, bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                item { ScanHeader(state, onOpenCertificates) }
-                if (state.devices.isNotEmpty()) {
-                    item {
-                        Card(modifier = Modifier.fillMaxWidth()) {
-                            state.devices.forEachIndexed { index, device ->
-                                if (index > 0) HorizontalDivider()
-                                DeviceRow(
-                                    device = device,
-                                    onOpen = { device.serverFingerprint?.let { onOpenDevice(device.ip, it) } },
-                                )
-                            }
-                        }
-                    }
+            LazyColumn(contentPadding = PaddingValues(start = 24.dp, top = 16.dp, end = 24.dp, bottom = 24.dp)) {
+                item { ScanHeader(state, onOpenCertificates, modifier = Modifier.padding(bottom = 16.dp)) }
+                itemsIndexed(state.devices, key = { _, device -> device.ip }) { index, device ->
+                    DeviceRow(
+                        device = device,
+                        first = index == 0,
+                        last = index == state.devices.lastIndex,
+                        onOpen = { device.serverFingerprint?.let { onOpenDevice(device.ip, it) } },
+                    )
                 }
             }
         }
@@ -87,8 +81,8 @@ internal fun ScannerScreen(
 }
 
 @Composable
-private fun ScanHeader(state: ScannerState, onOpenCertificates: () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+private fun ScanHeader(state: ScannerState, onOpenCertificates: () -> Unit, modifier: Modifier = Modifier) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
             text = stringResource(R.string.scanner_hint),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -106,6 +100,7 @@ private fun ScanHeader(state: ScannerState, onOpenCertificates: () -> Unit) {
             ScanProblem.NO_WIFI -> R.string.scanner_no_wifi
             ScanProblem.NO_PROFILE -> R.string.scanner_no_profile
             ScanProblem.PROFILE_UNAVAILABLE -> R.string.scanner_profile_unavailable
+            ScanProblem.SCAN_FAILED -> R.string.scanner_failed
             null -> null
         }
         problem?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error) }
@@ -115,18 +110,31 @@ private fun ScanHeader(state: ScannerState, onOpenCertificates: () -> Unit) {
     }
 }
 
+/** Rows are separate list items that together look like one card: only the outer corners are rounded. */
 @Composable
-private fun DeviceRow(device: DeviceItem, onOpen: () -> Unit) {
-    Text(
-        text = stringResource(R.string.device_ip, device.ip),
-        style = MaterialTheme.typography.titleMedium,
-        color = if (device.connectable) ConnectableBlue else MaterialTheme.colorScheme.onSurface,
-        fontWeight = if (device.connectable) FontWeight.SemiBold else FontWeight.Normal,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = device.connectable, onClick = onOpen)
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-    )
+private fun DeviceRow(device: DeviceItem, first: Boolean, last: Boolean, onOpen: () -> Unit) {
+    val corner = 12.dp
+    Card(
+        shape = RoundedCornerShape(
+            topStart = if (first) corner else 0.dp,
+            topEnd = if (first) corner else 0.dp,
+            bottomStart = if (last) corner else 0.dp,
+            bottomEnd = if (last) corner else 0.dp,
+        ),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        if (!first) HorizontalDivider()
+        Text(
+            text = stringResource(R.string.device_ip, device.ip),
+            style = MaterialTheme.typography.titleMedium,
+            color = if (device.connectable) ConnectableBlue else MaterialTheme.colorScheme.onSurface,
+            fontWeight = if (device.connectable) FontWeight.SemiBold else FontWeight.Normal,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = device.connectable, onClick = onOpen)
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+        )
+    }
 }
 
 @Composable

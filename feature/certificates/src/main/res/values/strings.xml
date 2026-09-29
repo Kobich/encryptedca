@@ -14,6 +14,7 @@
     <string name="delete_profile_title">Удалить профиль?</string>
     <string name="delete_profile_confirmation">Удалить «%1$s» вместе с клиентским ключом и CA? Если профиль активен, выбор будет сброшен.</string>
     <string name="delete_profile_accessibility">Удалить профиль %1$s</string>
+    <string name="retry">Повторить</string>
     <string name="cancel">Отмена</string>
     <string name="select">Выбрать</string>
     <string name="delete">Удалить</string>
@@ -38,4 +39,18 @@
     <string name="error_certificate_invalid">Сертификат не подходит или срок его действия истёк</string>
     <string name="error_storage">Не удалось безопасно сохранить сертификаты</string>
     <string name="error_profile_incomplete">Профиль неполный. Импортируйте сертификаты повторно</string>
+    <string name="qr_section_label">QR-коды</string>
+    <string name="qr_hint">Сертификаты можно считать с QR-кодов вместо файлов</string>
+    <string name="qr_ready">Клиентский .p12 и CA получены из QR-кодов</string>
+    <string name="qr_invalid">QR-коды не сложились в профиль: они повреждены или в другом формате</string>
+    <string name="qr_scan">Сканировать QR</string>
+    <string name="qr_use_files">Выбрать файлы вместо QR</string>
+    <string name="qr_scan_title">Сканирование QR</string>
+    <string name="qr_close">Закрыть</string>
+    <string name="qr_aim">Наведите камеру на QR-коды профиля. Можно захватить несколько сразу, порядок не важен</string>
+    <string name="qr_progress">Прочитано %1$d из %2$d</string>
+    <string name="qr_from_image">Выбрать изображение с кодами</string>
+    <string name="qr_image_without_new_codes">На изображении нет новых кодов этого профиля</string>
+    <string name="qr_camera_permission_needed">Для сканирования нужен доступ к камере</string>
+    <string name="qr_allow_camera">Разрешить</string>
 </resources>

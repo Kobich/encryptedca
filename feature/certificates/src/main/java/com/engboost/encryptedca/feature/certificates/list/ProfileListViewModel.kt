@@ -1,6 +1,5 @@
 package com.engboost.encryptedca.feature.certificates.list
 
-import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.engboost.encryptedca.core.certificates.CertificateProfileRepository
@@ -17,28 +16,6 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-internal data class ProfileItem(val id: String, val name: String?, val createdAt: Long)
-
-@Immutable
-internal data class ProfileListState(
-    val profiles: List<ProfileItem> = emptyList(),
-    val activeProfileId: String? = null,
-    val loaded: Boolean = false,
-    val busy: Boolean = false,
-    val error: CertificateProfileError? = null,
-    val pendingAction: PendingAction? = null,
-) {
-    val loading: Boolean get() = !loaded || busy
-}
-
-@Immutable
-internal sealed interface PendingAction {
-    val profile: ProfileItem
-
-    data class Select(override val profile: ProfileItem) : PendingAction
-    data class Delete(override val profile: ProfileItem) : PendingAction
-}
-
 internal class ProfileListViewModel(private val repository: CertificateProfileRepository) : ViewModel() {
 
     private val _state = MutableStateFlow(ProfileListState())
@@ -48,6 +25,7 @@ internal class ProfileListViewModel(private val repository: CertificateProfileRe
     private var runningChanges = 0
 
     init {
+        // Every successful read or change publishes the index; that is what marks the list as loaded.
         repository.index
             .filterNotNull()
             .onEach { index ->
@@ -55,42 +33,52 @@ internal class ProfileListViewModel(private val repository: CertificateProfileRe
                     it.copy(
                         profiles = index.profiles.map(ProfileSummary::toItem),
                         activeProfileId = index.activeProfileId,
-                        loaded = true,
+                        listLoad = ListLoad.Loaded,
                     )
                 }
             }
             .launchIn(viewModelScope)
-        launchChange { repository -> repository.refresh() }
+        loadList()
+    }
+
+    /** Also the retry after a failed read. */
+    fun loadList() {
+        if (_state.value.listLoad != ListLoad.Loaded) _state.update { it.copy(listLoad = ListLoad.Loading) }
+        viewModelScope.launch {
+            val error = errorOf { repository.refresh() } ?: return@launch
+            // A list already on screen stays; only a list that never loaded shows the error.
+            _state.update { if (it.listLoad == ListLoad.Loaded) it else it.copy(listLoad = ListLoad.Failed(error)) }
+        }
     }
 
     fun requestSelect(profile: ProfileItem) = openDialog(PendingAction.Select(profile))
 
     fun requestDelete(profile: ProfileItem) = openDialog(PendingAction.Delete(profile))
 
-    fun dismissPendingAction() = _state.update { it.copy(pendingAction = null, error = null) }
+    fun dismissPendingAction() = _state.update { it.copy(pendingAction = null) }
 
     fun confirmPendingAction() {
         val action = _state.value.pendingAction ?: return
         dismissPendingAction()
         val profileId = action.profile.id
         when (action) {
-            is PendingAction.Select -> launchChange { repository -> repository.selectProfile(profileId) }
-            is PendingAction.Delete -> launchChange { repository -> repository.deleteProfile(profileId) }
+            is PendingAction.Select -> runChange { repository.selectProfile(profileId) }
+            is PendingAction.Delete -> runChange { repository.deleteProfile(profileId) }
         }
     }
 
-    private fun openDialog(action: PendingAction) = _state.update { it.copy(pendingAction = action, error = null) }
+    private fun openDialog(action: PendingAction) = _state.update { it.copy(pendingAction = action, changeError = null) }
 
-    private fun launchChange(change: suspend (CertificateProfileRepository) -> Unit) {
+    private fun runChange(change: suspend () -> Unit) {
         viewModelScope.launch {
             runningChanges++
-            _state.update { it.copy(busy = true, error = null) }
+            _state.update { it.copy(changing = true, changeError = null) }
             try {
-                val error = errorOf { change(repository) }
-                _state.update { it.copy(error = error) }
+                val error = errorOf(change)
+                _state.update { it.copy(changeError = error) }
             } finally {
                 runningChanges--
-                _state.update { it.copy(busy = runningChanges > 0) }
+                _state.update { it.copy(changing = runningChanges > 0) }
             }
         }
     }

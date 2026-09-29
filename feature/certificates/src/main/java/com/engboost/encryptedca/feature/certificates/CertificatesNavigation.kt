@@ -13,6 +13,7 @@ import com.engboost.encryptedca.core.certificates.CertificateProfileRepository
 import com.engboost.encryptedca.feature.certificates.add.AddProfileScreen
 import com.engboost.encryptedca.feature.certificates.add.AddProfileViewModel
 import com.engboost.encryptedca.feature.certificates.add.DocumentReader
+import com.engboost.encryptedca.feature.certificates.add.qr.QrImageReader
 import com.engboost.encryptedca.feature.certificates.list.ProfileListScreen
 import com.engboost.encryptedca.feature.certificates.list.ProfileListViewModel
 
@@ -38,18 +39,29 @@ fun NavGraphBuilder.certificatesGraph(
                 onDelete = viewModel::requestDelete,
                 onConfirm = viewModel::confirmPendingAction,
                 onDismiss = viewModel::dismissPendingAction,
+                onRetryLoad = viewModel::loadList,
             )
         }
         composable(ADD_PROFILE_ROUTE) {
-            val resolver = LocalContext.current.applicationContext.contentResolver
+            val appContext = LocalContext.current.applicationContext
             val viewModel = viewModel {
-                AddProfileViewModel(repository, DocumentReader(resolver), createSavedStateHandle())
+                AddProfileViewModel(
+                    repository = repository,
+                    documents = DocumentReader(appContext.contentResolver),
+                    qrImages = QrImageReader(appContext),
+                    savedState = createSavedStateHandle(),
+                )
             }
             val state by viewModel.state.collectAsStateWithLifecycle()
             AddProfileScreen(
                 state = state,
                 onP12Picked = viewModel::selectP12,
                 onCaPicked = viewModel::selectCa,
+                onStartQrScan = viewModel::startQrScan,
+                onQrCodes = viewModel::onQrCodes,
+                onQrImagePicked = viewModel::readQrImage,
+                onCloseQrScan = viewModel::closeQrScan,
+                onUseFilesInsteadOfQr = viewModel::useFilesInsteadOfQr,
                 onImport = viewModel::importProfile,
                 onClose = { navController.popBackStack() },
             )

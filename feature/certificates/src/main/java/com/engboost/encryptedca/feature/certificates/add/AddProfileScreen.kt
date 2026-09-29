@@ -4,6 +4,7 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
@@ -30,6 +31,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -50,17 +52,23 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.engboost.encryptedca.core.certificates.model.CertificateProfileError
 import com.engboost.encryptedca.feature.certificates.R
+import com.engboost.encryptedca.feature.certificates.add.qr.QrScanScreen
 import com.engboost.encryptedca.feature.certificates.messageRes
 
 private val P12_MIME_TYPES = arrayOf("*/*")
 private val CA_MIME_TYPES = arrayOf("application/x-pem-file", "application/x-x509-ca-cert", "text/plain", "*/*")
 
-/** Keeps what the ViewModel must not see: the form fields, the password and the document pickers. */
+/** Owns the document pickers and the form fields; the password stays here and is handed over only on import. */
 @Composable
 internal fun AddProfileScreen(
     state: AddProfileState,
     onP12Picked: (Uri) -> Unit,
     onCaPicked: (Uri) -> Unit,
+    onStartQrScan: () -> Unit,
+    onQrCodes: (List<String>) -> Unit,
+    onQrImagePicked: (Uri) -> Unit,
+    onCloseQrScan: () -> Unit,
+    onUseFilesInsteadOfQr: () -> Unit,
     onImport: (displayName: String, password: CharArray) -> Unit,
     onClose: () -> Unit,
 ) {
@@ -85,12 +93,28 @@ internal fun AddProfileScreen(
     val caPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let(onCaPicked)
     }
+    val qrImagePicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        uri?.let(onQrImagePicked)
+    }
 
     var displayName by rememberSaveable { mutableStateOf("") }
     // Deliberately not saveable: the password must not end up in the saved instance state.
     var password by remember { mutableStateOf("") }
 
-    AddProfileContent(
+    val qr = state.qr
+    if (qr is QrStatus.Collecting) {
+        QrScanScreen(
+            status = qr,
+            onCodes = onQrCodes,
+            onPickImage = {
+                qrImagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            },
+            onClose = onCloseQrScan,
+        )
+        return
+    }
+
+    AddProfileForm(
         state = state,
         displayName = displayName,
         onDisplayNameChange = { displayName = it },
@@ -98,6 +122,8 @@ internal fun AddProfileScreen(
         onPasswordChange = { password = it },
         onPickP12 = { p12Picker.launch(P12_MIME_TYPES) },
         onPickCa = { caPicker.launch(CA_MIME_TYPES) },
+        onScanQr = onStartQrScan,
+        onUseFilesInsteadOfQr = onUseFilesInsteadOfQr,
         onImport = {
             onImport(displayName, password.toCharArray())
             password = ""
@@ -108,7 +134,7 @@ internal fun AddProfileScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun AddProfileContent(
+private fun AddProfileForm(
     state: AddProfileState,
     displayName: String,
     onDisplayNameChange: (String) -> Unit,
@@ -116,6 +142,8 @@ internal fun AddProfileContent(
     onPasswordChange: (String) -> Unit,
     onPickP12: () -> Unit,
     onPickCa: () -> Unit,
+    onScanQr: () -> Unit,
+    onUseFilesInsteadOfQr: () -> Unit,
     onImport: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -156,20 +184,25 @@ internal fun AddProfileContent(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            DocumentPicker(
-                label = R.string.client_certificate_label,
-                action = R.string.select_p12,
-                document = state.p12,
-                enabled = !state.importing,
-                onPick = onPickP12,
-            )
-            DocumentPicker(
-                label = R.string.ca_certificate_label,
-                action = R.string.select_ca,
-                document = state.ca,
-                enabled = !state.importing,
-                onPick = onPickCa,
-            )
+            if (state.qr == QrStatus.Ready) {
+                QrSource(state.qr, enabled = !state.importing, onScan = onScanQr, onUseFiles = onUseFilesInsteadOfQr)
+            } else {
+                DocumentPicker(
+                    label = R.string.client_certificate_label,
+                    action = R.string.select_p12,
+                    document = state.p12,
+                    enabled = !state.importing,
+                    onPick = onPickP12,
+                )
+                DocumentPicker(
+                    label = R.string.ca_certificate_label,
+                    action = R.string.select_ca,
+                    document = state.ca,
+                    enabled = !state.importing,
+                    onPick = onPickCa,
+                )
+                QrSource(state.qr, enabled = !state.importing, onScan = onScanQr, onUseFiles = onUseFilesInsteadOfQr)
+            }
 
             OutlinedTextField(
                 value = password,
@@ -220,6 +253,28 @@ private fun DocumentPicker(
 }
 
 @Composable
+private fun QrSource(status: QrStatus?, enabled: Boolean, onScan: () -> Unit, onUseFiles: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(stringResource(R.string.qr_section_label), style = MaterialTheme.typography.titleSmall)
+        when (status) {
+            QrStatus.Ready -> Text(stringResource(R.string.qr_ready), color = MaterialTheme.colorScheme.primary)
+            QrStatus.Invalid -> Text(stringResource(R.string.qr_invalid), color = MaterialTheme.colorScheme.error)
+            is QrStatus.Collecting, null -> Text(
+                text = stringResource(R.string.qr_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = onScan, enabled = enabled) { Text(stringResource(R.string.qr_scan)) }
+            if (status == QrStatus.Ready) {
+                TextButton(onClick = onUseFiles, enabled = enabled) { Text(stringResource(R.string.qr_use_files)) }
+            }
+        }
+    }
+}
+
+@Composable
 private fun ImportStatusMessage(status: ImportStatus) {
     when (status) {
         ImportStatus.Importing -> Row(
@@ -239,11 +294,11 @@ private fun ImportStatusMessage(status: ImportStatus) {
 
 @Preview(showBackground = true)
 @Composable
-private fun AddProfileContentPreview() {
+private fun AddProfileFormPreview() {
     MaterialTheme {
-        AddProfileContent(
+        AddProfileForm(
             state = AddProfileState(
-                p12 = PickedDocument("client.p12"),
+                p12 = PickedDocument(Uri.EMPTY, "client.p12"),
                 status = ImportStatus.Failed(CertificateProfileError.PKCS12_PASSWORD_OR_CORRUPT),
             ),
             displayName = "Lab router",
@@ -252,6 +307,8 @@ private fun AddProfileContentPreview() {
             onPasswordChange = {},
             onPickP12 = {},
             onPickCa = {},
+            onScanQr = {},
+            onUseFilesInsteadOfQr = {},
             onImport = {},
             onBack = {},
         )

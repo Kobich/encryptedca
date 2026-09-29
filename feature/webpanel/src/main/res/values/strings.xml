@@ -2,6 +2,7 @@
     <string name="web_panel_close">Закрыть</string>
     <string name="web_panel_reload">Обновить</string>
     <string name="web_panel_no_profile">Сертификат не выбран, устройство не примет подключение</string>
+    <string name="web_panel_profile_unavailable">Не удалось загрузить выбранный сертификат. Выберите его заново</string>
     <string name="web_panel_untrusted_server">Сертификат устройства изменился после сканирования. Отсканируйте сеть заново</string>
     <string name="web_panel_image_saved">Снимок сохранён в галерею</string>
     <string name="web_panel_image_open">Открыть</string>

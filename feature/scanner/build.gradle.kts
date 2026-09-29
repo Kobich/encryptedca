@@ -21,6 +21,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":core:certificates"))
     implementation(project(":core:network"))
 
     implementation(platform(libs.compose.bom))

@@ -1,21 +1,7 @@
 package com.engboost.encryptedca.feature.webpanel
 
-import android.annotation.SuppressLint
-import android.content.ActivityNotFoundException
-import android.content.Context
-import android.content.Intent
-import android.graphics.Bitmap
 import android.net.Uri
-import android.net.http.SslError
-import android.view.View
-import android.view.ViewGroup
-import android.webkit.ClientCertRequest
-import android.webkit.SslErrorHandler
-import android.webkit.WebChromeClient
-import android.webkit.WebResourceRequest
-import android.webkit.WebSettings
 import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -51,23 +37,22 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-
-/** A video the page switched to full screen, shown over everything until the page or Back hides it. */
-private class FullscreenVideo(val view: View, val callback: WebChromeClient.CustomViewCallback)
+import com.engboost.encryptedca.core.certificates.model.ClientCredentials
+import java.security.cert.X509Certificate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun WebPanelScreen(
     state: WebPanelState,
+    onReload: () -> Unit,
     onPageStarted: (url: String) -> Unit,
     onPageFinished: () -> Unit,
-    onClientCertRequest: (ClientCertRequest) -> Unit,
-    onSslError: (SslErrorHandler, SslError) -> Unit,
+    onClientCertRequest: (host: String, answer: (ClientCredentials?) -> Unit) -> Unit,
+    onSslError: (url: String, certificate: X509Certificate?) -> Boolean,
     onDownload: (url: String) -> Unit,
-    onMessageShown: () -> Unit,
+    onImageMessageShown: (ImageMessage) -> Unit,
     onClose: () -> Unit,
 ) {
-    val context = LocalContext.current
     var webView by remember { mutableStateOf<WebView?>(null) }
     var fullscreen by remember { mutableStateOf<FullscreenVideo?>(null) }
     val snackbar = remember { SnackbarHostState() }
@@ -82,29 +67,14 @@ internal fun WebPanelScreen(
         }
     }
 
-    val savedMessage = stringResource(R.string.web_panel_image_saved)
-    val openLabel = stringResource(R.string.web_panel_image_open)
-    val failedMessage = stringResource(R.string.web_panel_image_failed)
-    LaunchedEffect(state.savedImage, state.imageSaveFailed) {
-        val image = state.savedImage
-        if (image != null) {
-            val result = snackbar.showSnackbar(savedMessage, openLabel, duration = SnackbarDuration.Long)
-            if (result == SnackbarResult.ActionPerformed) {
-                openExternally(context, Uri.parse(image), type = "image/*")
-            }
-            onMessageShown()
-        } else if (state.imageSaveFailed) {
-            snackbar.showSnackbar(failedMessage)
-            onMessageShown()
-        }
-    }
+    ImageMessageSnackbar(state.imageMessage, snackbar, onImageMessageShown)
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             topBar = {
                 TopAppBar(
                     title = {
-                        Text(state.url, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(state.pageUrl, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     },
                     navigationIcon = {
                         IconButton(onClick = onClose) {
@@ -112,7 +82,12 @@ internal fun WebPanelScreen(
                         }
                     },
                     actions = {
-                        IconButton(onClick = { webView?.reload() }) {
+                        IconButton(
+                            onClick = {
+                                onReload()
+                                webView?.reloadAskingForCertificate()
+                            },
+                        ) {
                             Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.web_panel_reload))
                         }
                     },
@@ -122,37 +97,17 @@ internal fun WebPanelScreen(
         ) { padding ->
             Column(modifier = Modifier.fillMaxSize().padding(padding)) {
                 if (state.loading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                state.problem?.let { problem ->
-                    Text(
-                        text = stringResource(
-                            when (problem) {
-                                WebPanelProblem.NO_PROFILE -> R.string.web_panel_no_profile
-                                WebPanelProblem.UNTRUSTED_SERVER -> R.string.web_panel_untrusted_server
-                            },
-                        ),
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(16.dp),
-                    )
-                }
-                AndroidView(
-                    factory = { viewContext ->
-                        createWebView(
-                            context = viewContext,
-                            url = state.url,
-                            client = PanelWebViewClient(state.host, onPageStarted, onPageFinished, onClientCertRequest, onSslError),
-                            chrome = object : WebChromeClient() {
-                                override fun onShowCustomView(view: View, callback: CustomViewCallback) {
-                                    fullscreen = FullscreenVideo(view, callback)
-                                }
-
-                                override fun onHideCustomView() {
-                                    fullscreen = null
-                                }
-                            },
-                            onDownload = onDownload,
-                        ).also { webView = it }
-                    },
-                    onRelease = { it.destroy() },
+                state.problem?.let { ProblemText(it) }
+                PanelWebView(
+                    startUrl = state.startUrl,
+                    host = state.host,
+                    onPageStarted = onPageStarted,
+                    onPageFinished = onPageFinished,
+                    onClientCertRequest = onClientCertRequest,
+                    onSslError = onSslError,
+                    onDownload = onDownload,
+                    onFullscreenChange = { fullscreen = it },
+                    onCreated = { webView = it },
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -163,56 +118,43 @@ internal fun WebPanelScreen(
     }
 }
 
-@SuppressLint("SetJavaScriptEnabled")
-private fun createWebView(
-    context: Context,
-    url: String,
-    client: WebViewClient,
-    chrome: WebChromeClient,
-    onDownload: (String) -> Unit,
-) = WebView(context).apply {
-    // Without explicit MATCH_PARENT WebView sizes its viewport to the content, so 100vh layouts break.
-    layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-    settings.javaScriptEnabled = true
-    // The device's pages mix https and http resources.
-    settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-    webViewClient = client
-    webChromeClient = chrome
-    setDownloadListener { downloadUrl, _, _, _, _ -> onDownload(downloadUrl) }
-    // WebView remembers which key it gave a host; after a profile change it would reuse the old one.
-    WebView.clearClientCertPreferences { loadUrl(url) }
+@Composable
+private fun ProblemText(problem: WebPanelProblem) {
+    Text(
+        text = stringResource(
+            when (problem) {
+                WebPanelProblem.NO_PROFILE -> R.string.web_panel_no_profile
+                WebPanelProblem.PROFILE_UNAVAILABLE -> R.string.web_panel_profile_unavailable
+                WebPanelProblem.UNTRUSTED_SERVER -> R.string.web_panel_untrusted_server
+            },
+        ),
+        color = MaterialTheme.colorScheme.error,
+        modifier = Modifier.padding(16.dp),
+    )
 }
 
-/** Keeps the panel on the device: other hosts open in the browser and never see the client key. */
-private class PanelWebViewClient(
-    private val host: String,
-    private val pageStarted: (String) -> Unit,
-    private val pageFinished: () -> Unit,
-    private val clientCertRequested: (ClientCertRequest) -> Unit,
-    private val sslErrorReceived: (SslErrorHandler, SslError) -> Unit,
-) : WebViewClient() {
-    override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-        if (request.url.host == host) return false
-        openExternally(view.context, request.url)
-        return true
-    }
-
-    override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) = pageStarted(url)
-
-    override fun onPageFinished(view: WebView, url: String) = pageFinished()
-
-    override fun onReceivedClientCertRequest(view: WebView, request: ClientCertRequest) = clientCertRequested(request)
-
-    override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) = sslErrorReceived(handler, error)
-}
-
-private fun openExternally(context: Context, uri: Uri, type: String? = null) {
-    val intent = Intent(Intent.ACTION_VIEW)
-        .setDataAndType(uri, type)
-        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    try {
-        context.startActivity(intent)
-    } catch (e: ActivityNotFoundException) {
-        // Nothing on the phone can open it; the panel stays as it is.
+/** Shows each [ImageMessage] once; a newer message cancels the one on screen and takes its place. */
+@Composable
+private fun ImageMessageSnackbar(
+    message: ImageMessage?,
+    snackbar: SnackbarHostState,
+    onShown: (ImageMessage) -> Unit,
+) {
+    val context = LocalContext.current
+    val savedText = stringResource(R.string.web_panel_image_saved)
+    val openLabel = stringResource(R.string.web_panel_image_open)
+    val failedText = stringResource(R.string.web_panel_image_failed)
+    LaunchedEffect(message) {
+        when (message) {
+            null -> return@LaunchedEffect
+            is ImageMessage.Saved -> {
+                val result = snackbar.showSnackbar(savedText, openLabel, duration = SnackbarDuration.Long)
+                if (result == SnackbarResult.ActionPerformed) {
+                    openExternally(context, Uri.parse(message.uri), type = "image/*")
+                }
+            }
+            is ImageMessage.Failed -> snackbar.showSnackbar(failedText)
+        }
+        onShown(message)
     }
 }

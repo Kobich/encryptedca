@@ -15,4 +15,6 @@ openssl pkcs12 -export -legacy -out client.p12 -inkey client_key.pem -in client.
 
 The key is protected with 3DES, the certificate with RC2, the MAC is SHA-1. The CA is shipped separately and is not included in the `.p12`. This is the legacy format the import has to handle, not a recommendation for production.
 
+`qr/` holds the same pair as QR codes in the format of `docs/qr-profile-format.md`: `profile_1.png`…`profile_8.png` one by one and `profile_sheet.png` with all of them on one sheet, for testing the QR import from the screen or from an image.
+
 For local development only. Don't use these certificates in production and don't commit real keys.
