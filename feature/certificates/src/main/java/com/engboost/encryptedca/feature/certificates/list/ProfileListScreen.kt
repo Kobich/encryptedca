@@ -18,7 +18,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -31,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -45,6 +46,7 @@ import java.util.Date
 internal fun ProfileListScreen(
     state: ProfileListState,
     onAddProfile: () -> Unit,
+    onAddProfileFromQr: () -> Unit,
     onBack: () -> Unit,
     onSelect: (ProfileItem) -> Unit,
     onDelete: (ProfileItem) -> Unit,
@@ -69,11 +71,14 @@ internal fun ProfileListScreen(
             )
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onAddProfile,
-                icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                text = { Text(stringResource(R.string.add_profile)) },
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                FloatingActionButton(onClick = onAddProfileFromQr) {
+                    Icon(painterResource(R.drawable.ic_qr_code), contentDescription = stringResource(R.string.add_profile_qr))
+                }
+                FloatingActionButton(onClick = onAddProfile) {
+                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_profile))
+                }
+            }
         },
     ) { padding ->
         LazyColumn(
@@ -234,6 +239,7 @@ private fun ProfileListScreenPreview() {
                 listLoad = ListLoad.Loaded,
             ),
             onAddProfile = {},
+            onAddProfileFromQr = {},
             onBack = {},
             onSelect = {},
             onDelete = {},

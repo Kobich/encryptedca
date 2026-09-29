@@ -1,16 +1,16 @@
 <resources>
-    <string name="scanner_title">Устройства</string>
-    <string name="open_certificates">Сертификаты</string>
-    <string name="rescan">Сканировать заново</string>
-    <string name="scanner_hint">Сканируйте подсеть, чтобы найти устройства</string>
-    <string name="scanner_local_ip">Локальный IP: %1$s</string>
-    <string name="scanner_scanning">Поиск устройств…</string>
-    <string name="scanner_finished">Сканирование завершено</string>
-    <string name="scanner_nothing_found">Устройства не найдены</string>
-    <string name="scanner_no_wifi">Подключитесь к Wi-Fi сети с устройствами</string>
-    <string name="scanner_no_profile">Выберите сертификат, чтобы проверять устройства</string>
-    <string name="scanner_profile_unavailable">Не удалось загрузить выбранный сертификат. Выберите его заново</string>
-    <string name="scanner_failed">Поиск прервался из-за ошибки. Попробуйте ещё раз</string>
-    <string name="select_certificate">Выбрать сертификат</string>
+    <string name="scanner_title">Devices</string>
+    <string name="open_certificates">Certificates</string>
+    <string name="rescan">Rescan</string>
+    <string name="scanner_hint">Devices on this Wi-Fi network</string>
+    <string name="scanner_local_ip">Local IP: %1$s</string>
+    <string name="scanner_scanning">Scanning…</string>
+    <string name="scanner_finished">Scan complete</string>
+    <string name="scanner_nothing_found">No devices found</string>
+    <string name="scanner_no_wifi">Connect to the devices\' Wi-Fi network</string>
+    <string name="scanner_no_profile">Select a certificate to check devices</string>
+    <string name="scanner_profile_unavailable">Can\'t load the selected certificate. Select it again</string>
+    <string name="scanner_failed">Scan failed. Try again</string>
+    <string name="select_certificate">Select certificate</string>
     <string name="device_ip">IP: %1$s</string>
 </resources>

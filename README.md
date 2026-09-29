@@ -38,4 +38,4 @@ Tapping a device that passed the check opens `https://<ip>:443/` in a WebView. T
 
 ## Import from QR codes
 
-Instead of two files, the `.p12` and the CA can be read from a set of QR codes, in any order and several per camera frame, or from an image with the codes. The camera uses CameraX with the ML Kit QR model bundled in the APK, so Google Play services aren't required. The code format is described in [docs/qr-profile-format.md](docs/qr-profile-format.md); the `.p12` password is never in the codes and is entered as usual. The collected profile stays in memory only.
+Instead of two files, the `.p12` and the CA can be read from a set of QR codes, in any order and several per camera frame, or from an image with the codes. The camera uses CameraX with the ML Kit QR model bundled in the APK, so Google Play services aren't required. The code format is described in [docs/qr-profile-format.md](docs/qr-profile-format.md), and `tools/qr/make_profile_qr.py` generates codes from any `.p12` and CA; the `.p12` password is never in the codes and is entered as usual. The collected profile stays in memory only.

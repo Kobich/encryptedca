@@ -30,6 +30,7 @@ internal class AddProfileViewModel(
     private val documents: DocumentReader,
     private val qrImages: QrImageReader,
     private val savedState: SavedStateHandle,
+    startWithQr: Boolean,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AddProfileState())
@@ -41,6 +42,7 @@ internal class AddProfileViewModel(
     init {
         savedState.get<Uri>(KEY_P12)?.let(::selectP12)
         savedState.get<Uri>(KEY_CA)?.let(::selectCa)
+        if (startWithQr) startQrScan()
     }
 
     fun selectP12(uri: Uri) = select(KEY_P12, uri) { state, document -> state.copy(p12 = document) }

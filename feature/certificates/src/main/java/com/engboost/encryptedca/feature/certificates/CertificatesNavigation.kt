@@ -7,7 +7,9 @@ import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
+import androidx.navigation.NavType
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 import androidx.navigation.navigation
 import com.engboost.encryptedca.core.certificates.CertificateProfileRepository
 import com.engboost.encryptedca.feature.certificates.add.AddProfileScreen
@@ -19,7 +21,9 @@ import com.engboost.encryptedca.feature.certificates.list.ProfileListViewModel
 
 const val CERTIFICATES_ROUTE = "certificates"
 private const val PROFILE_LIST_ROUTE = "certificates/list"
-private const val ADD_PROFILE_ROUTE = "certificates/add"
+private const val ADD_PROFILE = "certificates/add"
+private const val START_WITH_QR_ARG = "qr"
+private const val ADD_PROFILE_ROUTE = "$ADD_PROFILE?$START_WITH_QR_ARG={$START_WITH_QR_ARG}"
 
 fun NavController.navigateToCertificates() = navigate(CERTIFICATES_ROUTE)
 
@@ -33,7 +37,8 @@ fun NavGraphBuilder.certificatesGraph(
             val state by viewModel.state.collectAsStateWithLifecycle()
             ProfileListScreen(
                 state = state,
-                onAddProfile = { navController.navigate(ADD_PROFILE_ROUTE) },
+                onAddProfile = { navController.navigate(ADD_PROFILE) },
+                onAddProfileFromQr = { navController.navigate("$ADD_PROFILE?$START_WITH_QR_ARG=true") },
                 onBack = { navController.popBackStack() },
                 onSelect = viewModel::requestSelect,
                 onDelete = viewModel::requestDelete,
@@ -42,7 +47,11 @@ fun NavGraphBuilder.certificatesGraph(
                 onRetryLoad = viewModel::loadList,
             )
         }
-        composable(ADD_PROFILE_ROUTE) {
+        composable(
+            route = ADD_PROFILE_ROUTE,
+            arguments = listOf(navArgument(START_WITH_QR_ARG) { type = NavType.BoolType; defaultValue = false }),
+        ) { entry ->
+            val startWithQr = entry.arguments?.getBoolean(START_WITH_QR_ARG) ?: false
             val appContext = LocalContext.current.applicationContext
             val viewModel = viewModel {
                 AddProfileViewModel(
@@ -50,6 +59,7 @@ fun NavGraphBuilder.certificatesGraph(
                     documents = DocumentReader(appContext.contentResolver),
                     qrImages = QrImageReader(appContext),
                     savedState = createSavedStateHandle(),
+                    startWithQr = startWithQr,
                 )
             }
             val state by viewModel.state.collectAsStateWithLifecycle()

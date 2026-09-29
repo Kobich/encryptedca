@@ -29,21 +29,13 @@ ECA1:<id>:<номер>/<N>:<кусок>
 
 Уровень коррекции ошибок рекомендуется M. Для печати на одном листе коды удобно раскладывать сеткой, по 6–8 штук на A4.
 
-## Пример генерации (Python, пакет `qrcode`)
+## Генерация
 
-```python
-import base64, hashlib, os, struct, qrcode
+Готовый скрипт: `tools/qr/make_profile_qr.py`. Он собирает коды из своих `.p12` и CA, сам проверяет, что они склеиваются обратно, и сохраняет PNG по одному коду и лист со всеми.
 
-p12 = open("client.p12", "rb").read()
-ca = open("ca.pem", "rb").read()
-body = struct.pack(">I", len(p12)) + p12 + struct.pack(">I", len(ca)) + ca
-text = base64.b64encode(body + hashlib.sha256(body).digest()).decode()
-
-size = 900
-parts = [text[i:i + size] for i in range(0, len(text), size)]
-profile_id = os.urandom(4).hex()
-for number, part in enumerate(parts, 1):
-    qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M)
-    qr.add_data(f"ECA1:{profile_id}:{number}/{len(parts)}:{part}")
-    qr.make_image().save(f"profile_{number}.png")
+```shell
+pip install "qrcode[pil]"
+python tools/qr/make_profile_qr.py client.p12 ca.pem --out qr-out
 ```
+
+`--chunk` задаёт размер куска (по умолчанию 900), `--columns` — число кодов в ряду на листе.

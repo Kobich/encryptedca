@@ -1,10 +1,10 @@
 <resources>
-    <string name="web_panel_close">Закрыть</string>
-    <string name="web_panel_reload">Обновить</string>
-    <string name="web_panel_no_profile">Сертификат не выбран, устройство не примет подключение</string>
-    <string name="web_panel_profile_unavailable">Не удалось загрузить выбранный сертификат. Выберите его заново</string>
-    <string name="web_panel_untrusted_server">Сертификат устройства изменился после сканирования. Отсканируйте сеть заново</string>
-    <string name="web_panel_image_saved">Снимок сохранён в галерею</string>
-    <string name="web_panel_image_open">Открыть</string>
-    <string name="web_panel_image_failed">Не удалось сохранить снимок</string>
+    <string name="web_panel_close">Close</string>
+    <string name="web_panel_reload">Reload</string>
+    <string name="web_panel_no_profile">No certificate selected, the device will refuse the connection</string>
+    <string name="web_panel_profile_unavailable">Can\'t load the selected certificate. Select it again</string>
+    <string name="web_panel_untrusted_server">The device certificate changed since the scan. Rescan the network</string>
+    <string name="web_panel_image_saved">Screenshot saved</string>
+    <string name="web_panel_image_open">Open</string>
+    <string name="web_panel_image_failed">Couldn\'t save the screenshot</string>
 </resources>
