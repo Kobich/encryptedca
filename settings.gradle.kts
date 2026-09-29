@@ -32,15 +32,14 @@ include(":core:network:impl")
 
 include(":feature:certificates:api")
 include(":feature:certificates:impl")
-include(":feature:certificates:ui:api")
-include(":feature:certificates:ui:impl")
-
 include(":feature:scanner:api")
 include(":feature:scanner:impl")
-include(":feature:scanner:ui:api")
-include(":feature:scanner:ui:impl")
-
 include(":feature:webpanel:api")
 include(":feature:webpanel:impl")
-include(":feature:webpanel:ui:api")
-include(":feature:webpanel:ui:impl")
+
+include(":ui:certificates:api")
+include(":ui:certificates:impl")
+include(":ui:scanner:api")
+include(":ui:scanner:impl")
+include(":ui:webpanel:api")
+include(":ui:webpanel:impl")

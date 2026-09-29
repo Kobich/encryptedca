@@ -4,14 +4,14 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.engboost.encryptedca.feature.certificates.api.CertificatesRoute
-import com.engboost.encryptedca.feature.certificates.api.navigateToCertificates
-import com.engboost.encryptedca.feature.certificates.ui.api.CertificatesUi
-import com.engboost.encryptedca.feature.scanner.api.ScannerRoute
-import com.engboost.encryptedca.feature.scanner.ui.api.ScannerUi
-import com.engboost.encryptedca.feature.webpanel.api.WebPanelRoute
-import com.engboost.encryptedca.feature.webpanel.api.navigateToWebPanel
-import com.engboost.encryptedca.feature.webpanel.ui.api.WebPanelUi
+import com.engboost.encryptedca.ui.certificates.api.CertificatesRoute
+import com.engboost.encryptedca.ui.certificates.api.CertificatesUi
+import com.engboost.encryptedca.ui.certificates.api.navigateToCertificates
+import com.engboost.encryptedca.ui.scanner.api.ScannerRoute
+import com.engboost.encryptedca.ui.scanner.api.ScannerUi
+import com.engboost.encryptedca.ui.webpanel.api.WebPanelRoute
+import com.engboost.encryptedca.ui.webpanel.api.WebPanelUi
+import com.engboost.encryptedca.ui.webpanel.api.navigateToWebPanel
 import org.koin.compose.koinInject
 
 @Composable

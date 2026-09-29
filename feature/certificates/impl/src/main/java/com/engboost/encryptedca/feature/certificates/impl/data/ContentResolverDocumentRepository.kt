@@ -5,7 +5,6 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import com.engboost.encryptedca.core.certificates.api.model.CertificateProfileError
 import com.engboost.encryptedca.core.certificates.api.model.CertificateProfileException
-import com.engboost.encryptedca.feature.certificates.impl.domain.repository.DocumentRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.IOException

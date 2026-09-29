@@ -17,11 +17,9 @@ android {
 }
 
 dependencies {
+    implementation(project(":feature:scanner:api"))
     implementation(project(":core:certificates:api"))
     implementation(project(":core:network:api"))
-
-    api(libs.koin.android)
     implementation(libs.kotlinx.coroutines.android)
-    implementation(platform(libs.compose.bom))
-    implementation(libs.compose.runtime)
+    implementation(libs.koin.android)
 }

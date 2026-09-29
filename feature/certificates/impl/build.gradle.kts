@@ -17,12 +17,9 @@ android {
 }
 
 dependencies {
-    api(project(":core:certificates:api"))
-
-    api(libs.koin.android)
+    implementation(project(":feature:certificates:api"))
+    implementation(project(":core:certificates:api"))
     implementation(libs.kotlinx.coroutines.android)
-    implementation(platform(libs.compose.bom))
-    implementation(libs.compose.runtime)
-    implementation(libs.lifecycle.viewmodel.savedstate)
+    implementation(libs.koin.android)
     implementation(libs.mlkit.barcode.scanning)
 }

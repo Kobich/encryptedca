@@ -11,7 +11,6 @@ import android.provider.MediaStore
 import android.util.Base64
 import android.util.Log
 import android.webkit.MimeTypeMap
-import com.engboost.encryptedca.feature.webpanel.impl.domain.repository.ScreenshotStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.IOException

@@ -42,15 +42,16 @@ dependencies {
     implementation(project(":core:certificates:impl"))
     implementation(project(":core:network:impl"))
 
-    implementation(project(":feature:certificates:api"))
     implementation(project(":feature:certificates:impl"))
-    implementation(project(":feature:certificates:ui:impl"))
-    implementation(project(":feature:scanner:api"))
     implementation(project(":feature:scanner:impl"))
-    implementation(project(":feature:scanner:ui:impl"))
-    implementation(project(":feature:webpanel:api"))
     implementation(project(":feature:webpanel:impl"))
-    implementation(project(":feature:webpanel:ui:impl"))
+
+    implementation(project(":ui:certificates:api"))
+    implementation(project(":ui:certificates:impl"))
+    implementation(project(":ui:scanner:api"))
+    implementation(project(":ui:scanner:impl"))
+    implementation(project(":ui:webpanel:api"))
+    implementation(project(":ui:webpanel:impl"))
 
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.koin.android)

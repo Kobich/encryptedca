@@ -17,5 +17,6 @@ android {
 }
 
 dependencies {
-    api(libs.navigation.runtime)
+    api(project(":core:certificates:api"))
+    api(libs.kotlinx.coroutines.android)
 }
