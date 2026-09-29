@@ -1,3 +1,9 @@
+// Единственная точка доступа к профилям сертификатов, один экземпляр на приложение.
+// Профиль — это три записи, которые меняются вместе: клиентский ключ (ClientKeyStore),
+// зашифрованный CA (CaCertificateStore) и строка в списке профилей (ProfileIndexStore).
+// Все вызовы идут по одному под mutex, поэтому никто не увидит наполовину записанный профиль.
+// Импорт и удаление нельзя отменить посередине: они либо доходят до конца, либо откатываются по шагам.
+// Пароль и байты .p12, переданные в importProfile, затираются при любом исходе.
 package com.engboost.encryptedca.core.certificates
 
 import android.content.Context
@@ -24,15 +30,6 @@ import kotlinx.coroutines.withContext
 import java.security.cert.X509Certificate
 import java.util.UUID
 
-/**
- * The only entry point to certificate profiles; one instance per app.
- *
- * A profile is three records kept in sync: the client key ([ClientKeyStore]), the encrypted CA
- * ([CaCertificateStore]) and an entry in the index ([ProfileIndexStore]).
- *
- * Every call holds [mutex], so reads never see a half-written profile. Changes also run
- * [NonCancellable]: once started, an import or delete finishes or rolls back even if the caller leaves.
- */
 class CertificateProfileRepository(context: Context) {
     private val keys = ClientKeyStore()
     private val caCertificates = CaCertificateStore(context.applicationContext)
@@ -41,14 +38,12 @@ class CertificateProfileRepository(context: Context) {
     private val mutex = Mutex()
     private val _index = MutableStateFlow<ProfileIndex?>(null)
 
-    /** `null` until the first [refresh] or change. */
     val index: StateFlow<ProfileIndex?> = _index.asStateFlow()
 
     suspend fun refresh() = withContext(Dispatchers.IO) {
         mutex.withLock { publishIndex() }
     }
 
-    /** Takes ownership of [p12] and [password] and wipes them whatever the outcome. Returns the new profile id. */
     suspend fun importProfile(displayName: String?, p12: ByteArray, password: CharArray, caPem: ByteArray): String =
         changeProfiles {
             try {
@@ -61,23 +56,19 @@ class CertificateProfileRepository(context: Context) {
             }
         }
 
-    /** Rejects a profile whose key or CA is missing or whose CA has expired. */
     suspend fun selectProfile(profileId: String) = changeProfiles {
         loadCredentials(profileId)
         profiles.setActive(profileId)
     }
 
-    /** Deleting the active profile clears the selection. */
     suspend fun deleteProfile(profileId: String) = changeProfiles {
         if (profiles.contains(profileId)) removeProfile(profileId)
     }
 
-    /** Credentials of the selected profile, or `null` when none is selected. */
     suspend fun loadActiveCredentials(): ClientCredentials? = withContext(Dispatchers.IO) {
         mutex.withLock { profiles.activeProfileId?.let(::loadCredentials) }
     }
 
-    /** Keystore, files and preferences can't share a transaction, so a failure is undone step by step. */
     private fun persistProfile(displayName: String?, clientKey: PrivateKeyWithChain, ca: X509Certificate): String {
         val profileId = UUID.randomUUID().toString()
         val rollback = ArrayDeque<() -> Unit>()
@@ -100,7 +91,6 @@ class CertificateProfileRepository(context: Context) {
         }
     }
 
-    /** Tries to delete both the key and the CA; the index entry goes only when both are gone. */
     private fun removeProfile(profileId: String) {
         val keyFailure = runCatching { keys.delete(profileId) }.exceptionOrNull()
         val caFailure = runCatching { caCertificates.delete(profileId) }.exceptionOrNull()
@@ -130,10 +120,6 @@ class CertificateProfileRepository(context: Context) {
         )
     }
 
-    /**
-     * Runs [change] under the lock without cancellation, then publishes the index whether or not
-     * [change] succeeded. The change's own error wins; a failed publish is attached to it.
-     */
     private suspend fun <T> changeProfiles(change: () -> T): T = withContext(Dispatchers.IO + NonCancellable) {
         mutex.withLock {
             val result = try {

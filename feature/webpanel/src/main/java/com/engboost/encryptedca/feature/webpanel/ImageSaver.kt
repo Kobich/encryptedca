@@ -1,3 +1,6 @@
+// Сохраняет в DCIM скриншоты, которые веб-интерфейс устройства отдаёт загрузкой data:image/<тип>;base64,<данные>.
+// Пока файл пишется, он скрыт от других приложений (IS_PENDING). Недописанный файл удаляется из галереи.
+// Возвращает null, если это не картинка в base64 или запись не удалась.
 package com.engboost.encryptedca.feature.webpanel
 
 import android.content.ContentResolver
@@ -12,16 +15,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.IOException
 
-/** The device's web UI hands out screenshots as `data:image/<type>;base64,<data>` downloads. */
 internal class ImageSaver(private val resolver: ContentResolver) {
 
-    /**
-     * Saves the image to DCIM. Returns `null` for a URL that isn't a base64 image of a known type,
-     * or when writing fails; a half-written entry is removed from the gallery.
-     */
     suspend fun saveDataUrl(dataUrl: String): Uri? = withContext(Dispatchers.IO) {
         val image = decode(dataUrl) ?: return@withContext null
-        // IS_PENDING hides the entry from other apps until the file is complete.
         val entry = ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, "image_${System.currentTimeMillis()}.${image.extension}")
             put(MediaStore.Images.Media.MIME_TYPE, image.mimeType)

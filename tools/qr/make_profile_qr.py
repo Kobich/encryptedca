@@ -72,7 +72,7 @@ def main() -> None:
     parser.add_argument("--out", type=Path, default=Path("qr-out"), help="output folder (default: qr-out)")
     parser.add_argument("--chunk", type=int, default=900,
                         help="base64 characters per code (default: 900); smaller codes read easier, but there are more of them")
-    parser.add_argument("--columns", type=int, default=2, help="codes per row on the sheet (default: 2)")
+    parser.add_argument("--columns", type=int, default=3, help="codes per row on the sheet (default: 3)")
     args = parser.parse_args()
 
     p12, ca = args.p12.read_bytes(), args.ca.read_bytes()

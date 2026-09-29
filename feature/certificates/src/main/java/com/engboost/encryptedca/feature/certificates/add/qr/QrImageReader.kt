@@ -1,3 +1,4 @@
+// Распознавание QR-кодов через ML Kit. Модель встроена в APK, поэтому Google Play services не нужны.
 package com.engboost.encryptedca.feature.certificates.add.qr
 
 import android.content.Context
@@ -13,14 +14,11 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** ML Kit's QR detector; the model is bundled in the APK, so Google Play services aren't needed. */
 internal fun createQrScanner(): BarcodeScanner =
     BarcodeScanning.getClient(BarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).build())
 
-/** Reads every QR code on a picture, e.g. a screenshot or a photo of the printed sheet. */
 internal class QrImageReader(private val context: Context) {
 
-    /** The texts of the codes found; empty when there are none or the image can't be opened. */
     suspend fun read(uri: Uri): List<String> = withContext(Dispatchers.IO) {
         val scanner = createQrScanner()
         try {

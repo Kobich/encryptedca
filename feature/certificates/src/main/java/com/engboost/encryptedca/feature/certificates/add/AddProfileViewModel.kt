@@ -1,33 +1,26 @@
+// Экран добавления профиля. Источник (файлы, камера или фото) выбран на списке и не меняется.
+// Файлы: выбранные документы запоминаются и переживают перезапуск процесса.
+// QR: коды собирает QrProfileCollector, собранный профиль живёт только в памяти.
+// Сам импорт делает ProfileImporter.
 package com.engboost.encryptedca.feature.certificates.add
 
 import android.net.Uri
-import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.engboost.encryptedca.core.certificates.CertificateProfileRepository
 import com.engboost.encryptedca.core.certificates.model.CertificateProfileError
-import com.engboost.encryptedca.core.certificates.model.CertificateProfileException
 import com.engboost.encryptedca.core.certificates.wipe
-import com.engboost.encryptedca.feature.certificates.add.qr.QrFormatException
 import com.engboost.encryptedca.feature.certificates.add.qr.QrImageReader
-import com.engboost.encryptedca.feature.certificates.add.qr.QrProfile
-import com.engboost.encryptedca.feature.certificates.add.qr.QrProfileAssembler
-import kotlinx.coroutines.CancellationException
+import com.engboost.encryptedca.feature.certificates.add.qr.QrProfileCollector
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/**
- * Adds one profile from the [source] picked on the list. Picked document URIs survive process death in
- * [savedState]. A profile read from QR codes stays only in memory and is wiped when it's replaced or the
- * screen goes away. The password never leaves the screen until import.
- */
 internal class AddProfileViewModel(
-    private val repository: CertificateProfileRepository,
     private val documents: DocumentReader,
+    private val importer: ProfileImporter,
     private val qrImages: QrImageReader,
     private val savedState: SavedStateHandle,
     source: ProfileSource,
@@ -36,8 +29,7 @@ internal class AddProfileViewModel(
     private val _state = MutableStateFlow(AddProfileState(source))
     val state: StateFlow<AddProfileState> = _state.asStateFlow()
 
-    private val qrAssembler = QrProfileAssembler()
-    private var qrProfile: QrProfile? = null
+    private val qrCollector = QrProfileCollector()
 
     init {
         when (source) {
@@ -49,68 +41,24 @@ internal class AddProfileViewModel(
         }
     }
 
-    fun selectP12(uri: Uri) = select(KEY_P12, uri) { state, document -> state.copy(p12 = document) }
-
-    fun selectCa(uri: Uri) = select(KEY_CA, uri) { state, document -> state.copy(ca = document) }
-
-    /** Starts over: also after codes that didn't form a valid profile. */
-    fun startQrCollecting() {
-        clearQr()
-        _state.update { it.copy(qr = QrStatus.Collecting()) }
-    }
-
-    /** Codes from one camera frame; they may belong to other profiles or not be ours at all. */
-    fun onQrCodes(texts: List<String>) {
-        if (_state.value.qr !is QrStatus.Collecting) return
-        if (addQrCodes(texts)) showQrProgress()
-    }
-
-    /** Several photos at once; together or over several picks they must hold all codes of the profile. */
-    fun readQrPhotos(uris: List<Uri>) {
-        viewModelScope.launch {
-            val texts = uris.flatMap { qrImages.read(it) }
-            if (_state.value.qr !is QrStatus.Collecting) return@launch
-            if (addQrCodes(texts)) {
-                showQrProgress()
-            } else {
-                _state.update { it.copy(qr = collectingStatus(photosWithoutNewCodes = true)) }
-            }
+    fun onAction(action: AddProfileAction) {
+        when (action) {
+            is AddProfileAction.P12Picked -> selectP12(action.uri)
+            is AddProfileAction.CaPicked -> selectCa(action.uri)
+            is AddProfileAction.QrCodesScanned -> addQrCodes(action.texts)
+            is AddProfileAction.QrPhotosPicked -> readQrPhotos(action.uris)
+            AddProfileAction.CollectQrAgain -> startQrCollecting()
+            is AddProfileAction.Import -> importProfile(action.displayName, action.password)
         }
     }
 
-    /** Takes ownership of [password] and wipes it, even when the import doesn't start. */
-    fun importProfile(displayName: String, password: CharArray) {
-        val current = _state.value
-        if (!current.canImport) {
-            password.wipe()
-            return
-        }
-        val name = displayName.trim().ifEmpty { null }
-        val qr = qrProfile.takeIf { current.qr == QrStatus.Ready }
-        val p12Uri = current.p12?.uri
-        val caUri = current.ca?.uri
-        _state.update { it.copy(status = ImportStatus.Importing) }
-        viewModelScope.launch {
-            val status = runImport(password) {
-                when {
-                    qr != null -> importFromQr(name, qr, password)
-                    p12Uri != null && caUri != null -> importFromFiles(name, p12Uri, caUri, password)
-                    else -> error("Nothing to import")
-                }
-            }
-            _state.update { it.copy(status = status) }
-        }
-    }
+    override fun onCleared() = qrCollector.clear()
 
-    override fun onCleared() {
-        clearQr()
-    }
+    private fun selectP12(uri: Uri) = selectDocument(KEY_P12, uri) { state, document -> state.copy(p12 = document) }
 
-    /**
-     * Shows the new document at once and fills in its name when the provider answers. A late answer
-     * for a document that has been replaced since is dropped.
-     */
-    private fun select(key: String, uri: Uri, show: (AddProfileState, PickedDocument) -> AddProfileState) {
+    private fun selectCa(uri: Uri) = selectDocument(KEY_CA, uri) { state, document -> state.copy(ca = document) }
+
+    private fun selectDocument(key: String, uri: Uri, show: (AddProfileState, PickedDocument) -> AddProfileState) {
         savedState[key] = uri
         _state.update { show(it, PickedDocument(uri, name = null)) }
         viewModelScope.launch {
@@ -119,72 +67,51 @@ internal class AddProfileViewModel(
         }
     }
 
-    /** Returns whether any of [texts] was a new part of the profile. */
-    private fun addQrCodes(texts: List<String>): Boolean = texts.map(qrAssembler::add).any { it }
+    private fun startQrCollecting() {
+        qrCollector.clear()
+        _state.update { it.copy(qr = qrCollector.progress()) }
+    }
 
-    private fun showQrProgress() {
-        if (!qrAssembler.complete) {
-            _state.update { it.copy(qr = collectingStatus()) }
-            return
-        }
-        val status = try {
-            qrProfile = qrAssembler.assemble()
-            QrStatus.Ready
-        } catch (e: QrFormatException) {
-            Log.w(TAG, "QR codes don't form a profile", e)
-            QrStatus.Invalid
-        }
-        qrAssembler.reset()
+    private fun addQrCodes(texts: List<String>) {
+        if (_state.value.qr !is QrStatus.Collecting) return
+        val status = qrCollector.add(texts) ?: return
         _state.update { it.copy(qr = status) }
     }
 
-    private fun collectingStatus(photosWithoutNewCodes: Boolean = false) =
-        QrStatus.Collecting(qrAssembler.received, qrAssembler.total, photosWithoutNewCodes)
-
-    private fun clearQr() {
-        qrAssembler.reset()
-        qrProfile?.wipe()
-        qrProfile = null
-        _state.update { it.copy(qr = null) }
-    }
-
-    private suspend fun importFromFiles(displayName: String?, p12Uri: Uri, caUri: Uri, password: CharArray): String {
-        val p12 = documents.read(p12Uri)
-        try {
-            val ca = documents.read(caUri)
-            return repository.importProfile(displayName, p12, password, ca)
-        } finally {
-            p12.fill(0)
+    private fun readQrPhotos(uris: List<Uri>) {
+        viewModelScope.launch {
+            val texts = uris.flatMap { qrImages.read(it) }
+            if (_state.value.qr !is QrStatus.Collecting) return@launch
+            val status = qrCollector.add(texts) ?: qrCollector.progress(photosWithoutNewCodes = true)
+            _state.update { it.copy(qr = status) }
         }
     }
 
-    /** The repository wipes what it gets, so it gets a copy: after a wrong password the codes needn't be scanned again. */
-    private suspend fun importFromQr(displayName: String?, qr: QrProfile, password: CharArray): String {
-        val p12 = qr.p12.copyOf()
-        try {
-            return repository.importProfile(displayName, p12, password, qr.caCertificate.copyOf())
-        } finally {
-            p12.fill(0)
-        }
-    }
-
-    private suspend fun runImport(password: CharArray, import: suspend () -> String): ImportStatus =
-        try {
-            ImportStatus.Imported(import())
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: CertificateProfileException) {
-            Log.w(TAG, "Import failed: ${e.error}", e)
-            ImportStatus.Failed(e.error)
-        } catch (e: Exception) {
-            Log.e(TAG, "Unexpected import failure", e)
-            ImportStatus.Failed(CertificateProfileError.STORAGE_FAILED)
-        } finally {
+    private fun importProfile(displayName: String, password: CharArray) {
+        val current = _state.value
+        if (!current.canImport) {
             password.wipe()
+            return
         }
+        val name = displayName.trim().ifEmpty { null }
+        val qrProfile = qrCollector.profile.takeIf { current.qr == QrStatus.Ready }
+        val p12Uri = current.p12?.uri
+        val caUri = current.ca?.uri
+        _state.update { it.copy(status = ImportStatus.Importing) }
+        viewModelScope.launch {
+            val status = when {
+                qrProfile != null -> importer.importQr(name, qrProfile, password)
+                p12Uri != null && caUri != null -> importer.importFiles(name, p12Uri, caUri, password)
+                else -> {
+                    password.wipe()
+                    ImportStatus.Failed(CertificateProfileError.STORAGE_FAILED)
+                }
+            }
+            _state.update { it.copy(status = status) }
+        }
+    }
 
     private companion object {
-        const val TAG = "AddProfile"
         const val KEY_P12 = "p12_uri"
         const val KEY_CA = "ca_uri"
     }

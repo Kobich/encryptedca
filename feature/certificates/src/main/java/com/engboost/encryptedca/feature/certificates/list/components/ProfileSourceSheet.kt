@@ -1,4 +1,4 @@
-package com.engboost.encryptedca.feature.certificates.list
+package com.engboost.encryptedca.feature.certificates.list.components
 
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
@@ -20,7 +20,6 @@ import androidx.compose.ui.unit.dp
 import com.engboost.encryptedca.feature.certificates.R
 import com.engboost.encryptedca.feature.certificates.add.ProfileSource
 
-/** The single entry point for adding a profile: files, QR codes with the camera or QR codes from photos. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ProfileSourceSheet(onPick: (ProfileSource) -> Unit, onDismiss: () -> Unit) {

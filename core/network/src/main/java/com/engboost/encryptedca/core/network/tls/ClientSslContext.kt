@@ -1,3 +1,5 @@
+// SSLContext для mTLS: подключаемся к устройству с ключом профиля и доверяем только серверам,
+// чей сертификат ведёт к CA профиля.
 package com.engboost.encryptedca.core.network.tls
 
 import com.engboost.encryptedca.core.certificates.model.ClientCredentials
@@ -7,10 +9,6 @@ import javax.net.ssl.TrustManagerFactory
 
 class TlsSetupException(message: String, cause: Throwable) : Exception(message, cause)
 
-/**
- * Client-side mutual TLS: authenticates to the server with the profile's key and trusts only
- * servers whose certificate chains to the profile's CA.
- */
 fun ClientCredentials.createSslContext(): SSLContext =
     try {
         val trustStore = KeyStore.getInstance(KeyStore.getDefaultType()).apply {

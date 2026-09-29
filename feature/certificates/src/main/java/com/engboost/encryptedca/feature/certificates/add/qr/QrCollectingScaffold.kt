@@ -24,9 +24,6 @@ import androidx.compose.ui.unit.dp
 import com.engboost.encryptedca.feature.certificates.R
 import com.engboost.encryptedca.feature.certificates.add.QrStatus
 
-// Parts shared by the camera and the photos screens.
-
-/** Top bar with a close button; closing drops the codes collected so far. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun QrCollectingScaffold(
@@ -50,7 +47,6 @@ internal fun QrCollectingScaffold(
     }
 }
 
-/** How many of the profile's codes are read; nothing until the first one. */
 @Composable
 internal fun QrCollectingProgress(status: QrStatus.Collecting) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {

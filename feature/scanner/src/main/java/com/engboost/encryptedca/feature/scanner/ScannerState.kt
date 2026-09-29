@@ -4,7 +4,6 @@ import androidx.compose.runtime.Immutable
 
 internal enum class ScanProblem { NO_WIFI, NO_PROFILE, PROFILE_UNAVAILABLE, SCAN_FAILED }
 
-/** [serverFingerprint] is set when the device passed the mTLS check, so its web panel can be opened. */
 internal data class DeviceItem(val ip: String, val serverFingerprint: String?) {
     val connectable: Boolean get() = serverFingerprint != null
 }

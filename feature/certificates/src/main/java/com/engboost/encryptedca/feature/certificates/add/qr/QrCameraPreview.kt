@@ -1,3 +1,5 @@
+// Превью задней камеры, которое отдаёт тексты всех QR-кодов в кадре. Нужно разрешение на камеру.
+// Анализ идёт в 1920x1080: при стандартных 640x480 плотные коды, по несколько в кадре, не читаются.
 package com.engboost.encryptedca.feature.certificates.add.qr
 
 import android.util.Size
@@ -18,7 +20,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 
-/** Back camera preview that reports the texts of all QR codes in each analysed frame. Needs the camera permission. */
 @Composable
 internal fun QrCameraPreview(onCodes: (List<String>) -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
@@ -32,7 +33,6 @@ internal fun QrCameraPreview(onCodes: (List<String>) -> Unit, modifier: Modifier
             val executor = ContextCompat.getMainExecutor(viewContext)
             val controller = LifecycleCameraController(context).apply {
                 setEnabledUseCases(CameraController.IMAGE_ANALYSIS)
-                // Dense codes need pixels: several of them in one frame don't read at the default 640x480.
                 imageAnalysisResolutionSelector = ResolutionSelector.Builder()
                     .setResolutionStrategy(
                         ResolutionStrategy(Size(1920, 1080), ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER),

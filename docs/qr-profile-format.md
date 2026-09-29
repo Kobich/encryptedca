@@ -38,4 +38,4 @@ pip install "qrcode[pil]"
 python tools/qr/make_profile_qr.py client.p12 ca.pem --out qr-out
 ```
 
-`--chunk` задаёт размер куска (по умолчанию 900), `--columns` — число кодов в ряду на листе.
+`--chunk` задаёт размер куска (по умолчанию 900), `--columns` — число кодов в ряду на листе (по умолчанию 3).

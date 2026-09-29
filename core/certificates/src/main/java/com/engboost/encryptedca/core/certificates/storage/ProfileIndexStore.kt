@@ -1,3 +1,7 @@
+// Список профилей (id, имена, время создания, активный профиль) в SharedPreferences.
+// Имя файла и ключи менять нельзя: на телефонах уже есть данные в этом формате.
+// Запись идёт через commit(), а не apply(): вызывающий должен узнать об ошибке, чтобы откатить изменения.
+// Если удаляется активный профиль, выбор тоже сбрасывается.
 package com.engboost.encryptedca.core.certificates.storage
 
 import android.content.Context
@@ -7,7 +11,6 @@ import com.engboost.encryptedca.core.certificates.model.CertificateProfileExcept
 import com.engboost.encryptedca.core.certificates.model.ProfileIndex
 import com.engboost.encryptedca.core.certificates.model.ProfileSummary
 
-/** The profile index in SharedPreferences; file name and keys must stay stable for existing installs. */
 internal class ProfileIndexStore(context: Context) {
     private val preferences = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -39,7 +42,6 @@ internal class ProfileIndexStore(context: Context) {
         }
     }
 
-    /** Also clears the selection when [profileId] is the active profile. */
     fun unregister(profileId: String) {
         val ids = storedIds()
         if (!ids.remove(profileId)) return
@@ -52,14 +54,12 @@ internal class ProfileIndexStore(context: Context) {
         }
     }
 
-    // commit() instead of apply(): the caller must know the write failed, so it can roll back.
     private inline fun commit(failureMessage: String, edit: SharedPreferences.Editor.() -> Unit) {
         if (!preferences.edit().apply(edit).commit()) {
             throw CertificateProfileException(STORAGE_FAILED, failureMessage)
         }
     }
 
-    /** A copy: the set returned by SharedPreferences must not be modified. */
     private fun storedIds(): MutableSet<String> = LinkedHashSet(preferences.getStringSet(IDS, null).orEmpty())
 
     private companion object {

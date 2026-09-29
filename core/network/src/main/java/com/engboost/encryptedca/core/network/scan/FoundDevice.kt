@@ -1,21 +1,18 @@
+// Результат проверки хоста:
+// TRUSTED — mTLS-рукопожатие прошло, сертификат сервера ведёт к CA профиля;
+// HANDSHAKE_FAILED — порт открыт, но рукопожатие не прошло;
+// PORT_UNREACHABLE — хост жив, но к порту подключиться не удалось.
+// serverFingerprint — SHA-256 сертификата, который показало доверенное устройство.
 package com.engboost.encryptedca.core.network.scan
 
 import java.net.Inet4Address
 
-/** What the probe actually established about a host; see [DeviceProbe]. */
 enum class DeviceStatus {
-    /** The TLS handshake with the active profile completed and the server certificate chains to its CA. */
     TRUSTED,
-    /**
-     * The port accepted a TCP connection, but the handshake didn't complete: an untrusted certificate,
-     * a rejected client key, a timeout or a service that doesn't speak TLS.
-     */
     HANDSHAKE_FAILED,
-    /** The host is up (it refused the connection or answered ping), but no TCP connection to the port was made. */
     PORT_UNREACHABLE,
 }
 
-/** [serverFingerprint] is the SHA-256 of the certificate a [DeviceStatus.TRUSTED] device presented. */
 data class FoundDevice(
     val address: Inet4Address,
     val status: DeviceStatus,

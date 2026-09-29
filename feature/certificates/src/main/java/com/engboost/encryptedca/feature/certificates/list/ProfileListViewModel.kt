@@ -1,3 +1,6 @@
+// Список профилей: показывает сохранённые профили, делает один из них активным или удаляет.
+// Выбор и удаление сначала подтверждаются диалогом, потом выполняются в репозитории.
+// Если список уже на экране, ошибка повторной загрузки его не прячет.
 package com.engboost.encryptedca.feature.certificates.list
 
 import androidx.lifecycle.ViewModel
@@ -21,11 +24,9 @@ internal class ProfileListViewModel(private val repository: CertificateProfileRe
     private val _state = MutableStateFlow(ProfileListState())
     val state: StateFlow<ProfileListState> = _state.asStateFlow()
 
-    // Touched only on the main thread, so a plain counter is enough.
     private var runningChanges = 0
 
     init {
-        // Every successful read or change publishes the index; that is what marks the list as loaded.
         repository.index
             .filterNotNull()
             .onEach { index ->
@@ -41,33 +42,38 @@ internal class ProfileListViewModel(private val repository: CertificateProfileRe
         loadList()
     }
 
-    /** Also the retry after a failed read. */
-    fun loadList() {
+    fun onAction(action: ProfileListAction) {
+        when (action) {
+            is ProfileListAction.Select -> askToConfirm(PendingConfirmation.Select(action.profile))
+            is ProfileListAction.Delete -> askToConfirm(PendingConfirmation.Delete(action.profile))
+            ProfileListAction.Confirm -> runConfirmed()
+            ProfileListAction.Dismiss -> dismissConfirmation()
+            ProfileListAction.RetryLoad -> loadList()
+        }
+    }
+
+    private fun loadList() {
         if (_state.value.listLoad != ListLoad.Loaded) _state.update { it.copy(listLoad = ListLoad.Loading) }
         viewModelScope.launch {
             val error = errorOf { repository.refresh() } ?: return@launch
-            // A list already on screen stays; only a list that never loaded shows the error.
             _state.update { if (it.listLoad == ListLoad.Loaded) it else it.copy(listLoad = ListLoad.Failed(error)) }
         }
     }
 
-    fun requestSelect(profile: ProfileItem) = openDialog(PendingAction.Select(profile))
+    private fun askToConfirm(confirmation: PendingConfirmation) =
+        _state.update { it.copy(pendingConfirmation = confirmation, changeError = null) }
 
-    fun requestDelete(profile: ProfileItem) = openDialog(PendingAction.Delete(profile))
+    private fun dismissConfirmation() = _state.update { it.copy(pendingConfirmation = null) }
 
-    fun dismissPendingAction() = _state.update { it.copy(pendingAction = null) }
-
-    fun confirmPendingAction() {
-        val action = _state.value.pendingAction ?: return
-        dismissPendingAction()
-        val profileId = action.profile.id
-        when (action) {
-            is PendingAction.Select -> runChange { repository.selectProfile(profileId) }
-            is PendingAction.Delete -> runChange { repository.deleteProfile(profileId) }
+    private fun runConfirmed() {
+        val confirmation = _state.value.pendingConfirmation ?: return
+        dismissConfirmation()
+        val profileId = confirmation.profile.id
+        when (confirmation) {
+            is PendingConfirmation.Select -> runChange { repository.selectProfile(profileId) }
+            is PendingConfirmation.Delete -> runChange { repository.deleteProfile(profileId) }
         }
     }
-
-    private fun openDialog(action: PendingAction) = _state.update { it.copy(pendingAction = action, changeError = null) }
 
     private fun runChange(change: suspend () -> Unit) {
         viewModelScope.launch {

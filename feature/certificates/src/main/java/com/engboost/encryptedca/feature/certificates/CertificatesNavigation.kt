@@ -15,6 +15,7 @@ import com.engboost.encryptedca.core.certificates.CertificateProfileRepository
 import com.engboost.encryptedca.feature.certificates.add.AddProfileScreen
 import com.engboost.encryptedca.feature.certificates.add.AddProfileViewModel
 import com.engboost.encryptedca.feature.certificates.add.DocumentReader
+import com.engboost.encryptedca.feature.certificates.add.ProfileImporter
 import com.engboost.encryptedca.feature.certificates.add.ProfileSource
 import com.engboost.encryptedca.feature.certificates.add.qr.QrImageReader
 import com.engboost.encryptedca.feature.certificates.list.ProfileListScreen
@@ -27,7 +28,6 @@ private const val ADD_PROFILE_ROUTE = "certificates/add/{$SOURCE_ARG}"
 
 fun NavController.navigateToCertificates() = navigate(CERTIFICATES_ROUTE)
 
-/** Every way of adding a profile starts on the list, which is where the flow returns to. */
 private fun NavController.navigateToAddProfile(source: ProfileSource) = navigate("certificates/add/${source.name}")
 
 fun NavGraphBuilder.certificatesGraph(
@@ -40,13 +40,9 @@ fun NavGraphBuilder.certificatesGraph(
             val state by viewModel.state.collectAsStateWithLifecycle()
             ProfileListScreen(
                 state = state,
+                onAction = viewModel::onAction,
                 onAddProfile = navController::navigateToAddProfile,
                 onBack = { navController.popBackStack() },
-                onSelect = viewModel::requestSelect,
-                onDelete = viewModel::requestDelete,
-                onConfirm = viewModel::confirmPendingAction,
-                onDismiss = viewModel::dismissPendingAction,
-                onRetryLoad = viewModel::loadList,
             )
         }
         composable(
@@ -56,9 +52,10 @@ fun NavGraphBuilder.certificatesGraph(
             val source = ProfileSource.valueOf(requireNotNull(entry.arguments?.getString(SOURCE_ARG)))
             val appContext = LocalContext.current.applicationContext
             val viewModel = viewModel {
+                val documents = DocumentReader(appContext.contentResolver)
                 AddProfileViewModel(
-                    repository = repository,
-                    documents = DocumentReader(appContext.contentResolver),
+                    documents = documents,
+                    importer = ProfileImporter(repository, documents),
                     qrImages = QrImageReader(appContext),
                     savedState = createSavedStateHandle(),
                     source = source,
@@ -67,12 +64,7 @@ fun NavGraphBuilder.certificatesGraph(
             val state by viewModel.state.collectAsStateWithLifecycle()
             AddProfileScreen(
                 state = state,
-                onP12Picked = viewModel::selectP12,
-                onCaPicked = viewModel::selectCa,
-                onQrCodes = viewModel::onQrCodes,
-                onQrPhotosPicked = viewModel::readQrPhotos,
-                onCollectQrAgain = viewModel::startQrCollecting,
-                onImport = viewModel::importProfile,
+                onAction = viewModel::onAction,
                 onClose = { navController.popBackStack() },
             )
         }

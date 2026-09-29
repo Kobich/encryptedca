@@ -1,3 +1,9 @@
+// Проверяет один хост: TCP-подключение через Wi-Fi сеть, затем mTLS-рукопожатие с активным профилем.
+// Отказ в подключении значит, что хост жив. При таймауте живость проверяется ping'ом.
+// Ping — отдельный процесс, его нельзя привязать к Wi-Fi, поэтому он идёт по маршруту по умолчанию и может
+// пропустить хост. На доверие к устройству ping не влияет никогда.
+// Устройства адресуются по IP, поэтому проверяется только цепочка до CA профиля, без имени хоста.
+// Таймаут рукопожатия большой: RSA-4096 на слабом устройстве может считаться несколько секунд.
 package com.engboost.encryptedca.core.network.scan
 
 import android.net.Network
@@ -13,27 +19,17 @@ import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLSocket
 
-/**
- * Checks one host: a TCP connection through the Wi-Fi [network], then the mTLS handshake.
- *
- * When the connection times out, ping decides whether the host is up at all. Ping is a separate process
- * and can't be bound to [network], so it follows the phone's default route; if that isn't the Wi-Fi,
- * a live host may be missed. That only hides a host whose port couldn't be reached anyway: ping never
- * affects whether a device counts as trusted.
- */
 internal class DeviceProbe(
     private val network: Network,
     private val sslContext: SSLContext,
     private val port: Int,
 ) {
-    /** `null` when the host doesn't answer at all. */
     fun check(host: Inet4Address): FoundDevice? {
         val socket = network.socketFactory.createSocket()
         try {
             socket.connect(InetSocketAddress(host, port), CONNECT_TIMEOUT_MS)
         } catch (e: IOException) {
             socket.close()
-            // A refused connection proves the host is up; a timeout may be a firewall, so ask ping.
             val alive = e is ConnectException || ping(host)
             return if (alive) FoundDevice(host, DeviceStatus.PORT_UNREACHABLE) else null
         }
@@ -42,10 +38,8 @@ internal class DeviceProbe(
         return FoundDevice(host, status, fingerprint)
     }
 
-    /** The server certificate's fingerprint, or `null` when the handshake failed. Closes [socket]. */
     private fun handshake(socket: Socket, host: Inet4Address): String? =
         try {
-            // Devices are addressed by IP, so only the chain to the profile's CA is checked, not a host name.
             val tls = sslContext.socketFactory.createSocket(socket, host.hostAddress, port, true) as SSLSocket
             tls.use {
                 it.soTimeout = HANDSHAKE_TIMEOUT_MS
@@ -76,7 +70,6 @@ internal class DeviceProbe(
 
     private companion object {
         const val CONNECT_TIMEOUT_MS = 1_000
-        // RSA-4096 on an embedded server can take several seconds.
         const val HANDSHAKE_TIMEOUT_MS = 10_000
         const val PING_TIMEOUT_S = 2L
         const val TAG = "DeviceProbe"

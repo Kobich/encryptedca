@@ -1,5 +1,5 @@
 # Add project specific R8 rules here.
-# AGP will combine all keep rule files in src/main/keepRules to pass to R8
+# Used by the release build type once isMinifyEnabled is turned on
 #
 # For more details, see
 #   https://d.android.com/r/tools/r8/keep-rules

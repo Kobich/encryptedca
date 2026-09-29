@@ -1,3 +1,5 @@
+// Проверяет все хосты подсети Wi-Fi через DeviceProbe, до 64 одновременно.
+// Каждый живой хост отдаётся сразу после проверки, не дожидаясь остальных.
 package com.engboost.encryptedca.core.network.scan
 
 import com.engboost.encryptedca.core.network.wifi.LocalNetwork
@@ -10,10 +12,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import javax.net.ssl.SSLContext
 
-/** Checks every host of a Wi-Fi subnet with [DeviceProbe], several at a time. */
 class DeviceScanner {
-
-    /** Emits each live host as soon as it has been checked; hosts that don't answer are skipped. */
     fun scan(wifi: LocalNetwork, sslContext: SSLContext, port: Int = HTTPS_PORT): Flow<FoundDevice> = channelFlow {
         val probe = DeviceProbe(wifi.network, sslContext, port)
         val permits = Semaphore(PARALLEL_PROBES)

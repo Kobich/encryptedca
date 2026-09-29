@@ -23,10 +23,6 @@ import androidx.compose.ui.unit.dp
 import com.engboost.encryptedca.feature.certificates.R
 import com.engboost.encryptedca.feature.certificates.add.QrStatus
 
-/**
- * Collects the profile's QR codes from pictures: screenshots or photos of the printed sheet.
- * Several photos can be picked at once, and more can be added until every code is read.
- */
 @Composable
 internal fun QrPhotosScreen(
     status: QrStatus.Collecting,
@@ -40,7 +36,6 @@ internal fun QrPhotosScreen(
         photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
     }
 
-    // The user came here to pick photos, so the picker opens right away. Only once: not again after rotation.
     var pickerOpenedOnStart by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         if (!pickerOpenedOnStart) {

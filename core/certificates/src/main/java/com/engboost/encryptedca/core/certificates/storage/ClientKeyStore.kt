@@ -1,3 +1,6 @@
+// Хранит клиентские ключи в Android Keystore под именем mtls_client_<profileId>. Имя менять нельзя.
+// RSA-ключу дополнительно разрешена расшифровка без паддинга: для RSA-PSS в TLS 1.3 Conscrypt сам делает паддинг
+// и просит у ключа «сырую» RSA-операцию. Без этого разрешения рукопожатие не проходит.
 package com.engboost.encryptedca.core.certificates.storage
 
 import android.security.keystore.KeyProperties
@@ -9,13 +12,9 @@ import com.engboost.encryptedca.core.certificates.model.PrivateKeyWithChain
 import com.engboost.encryptedca.core.certificates.model.rethrowAs
 import java.security.KeyStore
 
-/** Client keys in Android Keystore under `mtls_client_<profileId>`; the alias format must stay stable. */
 internal class ClientKeyStore {
-
     fun save(profileId: String, key: PrivateKeyWithChain) = rethrowAs(STORAGE_FAILED, "Could not save client key") {
         val rsa = key.privateKey.algorithm.equals(KeyProperties.KEY_ALGORITHM_RSA, ignoreCase = true)
-        // For RSA-PSS (TLS 1.3) Conscrypt pads the data itself and asks the key for a raw RSA operation,
-        // which Keystore treats as decryption without padding; the key must allow it or the handshake fails.
         val purposes = if (rsa) KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_DECRYPT else KeyProperties.PURPOSE_SIGN
         val protection = KeyProtection.Builder(purposes)
             .setDigests(

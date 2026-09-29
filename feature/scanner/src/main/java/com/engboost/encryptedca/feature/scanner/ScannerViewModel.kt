@@ -1,3 +1,6 @@
+// Сканирует текущую Wi-Fi сеть с активным профилем.
+// Смена сети, смена профиля или кнопка «пересканировать» отменяют текущий скан и запускают новый.
+// Ошибка завершает только текущую попытку, следующие сканы работают как обычно.
 package com.engboost.encryptedca.feature.scanner
 
 import android.util.Log
@@ -35,7 +38,6 @@ internal class ScannerViewModel(
     private val rescans = MutableStateFlow(0)
 
     init {
-        // A new Wi-Fi network, another selected profile or a manual rescan cancels the running scan and starts over.
         val activeProfile = repository.index.map { it?.activeProfileId }.distinctUntilChanged()
         viewModelScope.launch {
             combine(wifiMonitor.observeNetwork(), activeProfile, rescans) { wifi, _, _ -> wifi }
@@ -45,7 +47,6 @@ internal class ScannerViewModel(
 
     fun rescan() = rescans.update { it + 1 }
 
-    /** One scan attempt. A failure ends only this attempt, so later rescans and network changes still work. */
     private suspend fun runScan(wifi: LocalNetwork?) {
         if (wifi == null) return showProblem(null, ScanProblem.NO_WIFI)
         val sslContext = try {
@@ -73,7 +74,6 @@ internal class ScannerViewModel(
         }
     }
 
-    /** `null` when no profile is selected. */
     private suspend fun createSslContext(): SSLContext? = repository.loadActiveCredentials()?.createSslContext()
 
     private fun showProblem(wifi: LocalNetwork?, problem: ScanProblem) {

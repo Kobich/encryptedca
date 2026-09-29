@@ -13,7 +13,6 @@ private const val HOST_ARG = "host"
 private const val FINGERPRINT_ARG = "fingerprint"
 private const val WEB_PANEL_ROUTE = "web-panel/{$HOST_ARG}/{$FINGERPRINT_ARG}"
 
-/** Opens the web panel of a device that passed the scan; [serverFingerprint] pins the certificate it showed. */
 fun NavController.navigateToWebPanel(host: String, serverFingerprint: String) =
     navigate("web-panel/$host/$serverFingerprint")
 
@@ -27,16 +26,6 @@ fun NavGraphBuilder.webPanelDestination(
         val resolver = LocalContext.current.applicationContext.contentResolver
         val viewModel = viewModel { WebPanelViewModel(repository, ImageSaver(resolver), host, fingerprint) }
         val state by viewModel.state.collectAsStateWithLifecycle()
-        WebPanelScreen(
-            state = state,
-            onReload = viewModel::onReload,
-            onPageStarted = viewModel::onPageStarted,
-            onPageFinished = viewModel::onPageFinished,
-            onClientCertRequest = viewModel::onClientCertRequest,
-            onSslError = viewModel::onSslError,
-            onDownload = viewModel::onDownload,
-            onImageMessageShown = viewModel::onImageMessageShown,
-            onClose = onClose,
-        )
+        WebPanelScreen(state = state, onAction = viewModel::onAction, onClose = onClose)
     }
 }

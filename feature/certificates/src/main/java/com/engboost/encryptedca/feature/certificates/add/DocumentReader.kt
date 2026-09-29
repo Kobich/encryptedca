@@ -9,7 +9,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.IOException
 
-/** Reads documents picked through the Storage Access Framework: SD card, Downloads, cloud providers. */
 internal class DocumentReader(private val resolver: ContentResolver) {
 
     suspend fun displayName(uri: Uri): String? = withContext(Dispatchers.IO) {

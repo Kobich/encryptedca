@@ -28,7 +28,6 @@ import androidx.core.content.ContextCompat
 import com.engboost.encryptedca.feature.certificates.R
 import com.engboost.encryptedca.feature.certificates.add.QrStatus
 
-/** Collects the profile's QR codes with the camera; asks for the camera permission first. */
 @Composable
 internal fun QrCameraScreen(
     status: QrStatus.Collecting,

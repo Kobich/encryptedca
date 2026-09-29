@@ -1,3 +1,6 @@
+// Хранит CA профиля зашифрованным: файл noBackupFilesDir/<profileId>.ca.enc,
+// внутри [длина IV][IV][шифротекст AES-GCM]. Ключ шифрования лежит в Android Keystore.
+// Формат файла и имя ключа менять нельзя: на телефонах уже есть профили в этом формате.
 package com.engboost.encryptedca.core.certificates.storage
 
 import android.content.Context
@@ -17,10 +20,6 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
-/**
- * Stores the CA DER as `[IV length][IV][AES-GCM ciphertext]` in `noBackupFilesDir`.
- * The format and key alias must stay compatible with profiles already on devices.
- */
 internal class CaCertificateStore(context: Context) {
     private val directory = context.noBackupFilesDir
 

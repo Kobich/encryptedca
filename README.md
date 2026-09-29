@@ -15,6 +15,21 @@ Android app that finds hardware devices in the Wi-Fi network the phone is connec
 
 Features don't depend on each other; `:app` wires them together. Each feature exposes only its navigation entry point.
 
+### Feature layout
+
+Every feature is laid out the same way, so a file's place tells what it does:
+
+| File or folder | Contents |
+| --- | --- |
+| `<Feature>Navigation.kt` | The feature's only public entry point: routes, ViewModel creation, navigation |
+| `<Screen>Screen.kt` | The screen. Takes `state`, one `onAction` and navigation callbacks |
+| `<Screen>State.kt` | What the screen shows |
+| `<Screen>Action.kt` | Everything the user can do on the screen, handled by `<Screen>ViewModel.onAction` |
+| `<Screen>ViewModel.kt` | Turns actions into state. Heavy work lives in its own classes, e.g. `ProfileImporter`, `QrProfileCollector` |
+| `components/` | Parts of a screen's UI |
+
+Comments: only a short header at the top of a file whose purpose isn't obvious from the code.
+
 ## Certificate storage
 
 - The `.p12` is not kept. Its private key and chain go into Android Keystore under `mtls_client_<profileId>`, not extractable. RSA keys also allow raw private-key operations: Conscrypt needs them for RSA-PSS in TLS 1.3.

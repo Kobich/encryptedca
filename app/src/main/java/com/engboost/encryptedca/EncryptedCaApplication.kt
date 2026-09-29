@@ -1,3 +1,5 @@
+// Приложение заранее читает список профилей, чтобы экран сертификатов открылся уже заполненным.
+// Если чтение не удалось, ошибку покажет сам экран и предложит повторить.
 package com.engboost.encryptedca
 
 import android.app.Application
@@ -15,12 +17,10 @@ class EncryptedCaApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        // Reads the profile index while the first screen is drawn, so the certificate list opens already filled.
         appScope.launch {
             try {
                 certificateProfiles.refresh()
             } catch (e: Exception) {
-                // The list screen retries and shows the error.
                 Log.w("EncryptedCa", "Could not preload certificate profiles", e)
             }
         }

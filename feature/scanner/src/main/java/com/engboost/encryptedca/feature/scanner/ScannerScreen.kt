@@ -1,40 +1,30 @@
 package com.engboost.encryptedca.feature.scanner
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-
-private val ConnectableBlue = Color(0xFF1E88E5)
+import com.engboost.encryptedca.feature.scanner.components.DeviceRow
+import com.engboost.encryptedca.feature.scanner.components.ScanHeader
+import com.engboost.encryptedca.feature.scanner.components.ScanStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,93 +52,21 @@ internal fun ScannerScreen(
         },
         bottomBar = { ScanStatus(state) },
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            LazyColumn(contentPadding = PaddingValues(start = 24.dp, top = 16.dp, end = 24.dp, bottom = 24.dp)) {
-                item { ScanHeader(state, onOpenCertificates, modifier = Modifier.padding(bottom = 16.dp)) }
-                itemsIndexed(state.devices, key = { _, device -> device.ip }) { index, device ->
-                    DeviceRow(
-                        device = device,
-                        first = index == 0,
-                        last = index == state.devices.lastIndex,
-                        onOpen = { device.serverFingerprint?.let { onOpenDevice(device.ip, it) } },
-                    )
-                }
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(start = 24.dp, top = 16.dp, end = 24.dp, bottom = 24.dp),
+        ) {
+            item { ScanHeader(state, onOpenCertificates, modifier = Modifier.padding(bottom = 16.dp)) }
+            itemsIndexed(state.devices, key = { _, device -> device.ip }) { index, device ->
+                DeviceRow(
+                    device = device,
+                    first = index == 0,
+                    last = index == state.devices.lastIndex,
+                    onOpen = { device.serverFingerprint?.let { onOpenDevice(device.ip, it) } },
+                )
             }
         }
     }
-}
-
-@Composable
-private fun ScanHeader(state: ScannerState, onOpenCertificates: () -> Unit, modifier: Modifier = Modifier) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(
-            text = stringResource(R.string.scanner_hint),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        state.localIp?.let {
-            Text(
-                text = stringResource(R.string.scanner_local_ip, it),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-            )
-        }
-        val problem = when (state.problem) {
-            ScanProblem.NO_WIFI -> R.string.scanner_no_wifi
-            ScanProblem.NO_PROFILE -> R.string.scanner_no_profile
-            ScanProblem.PROFILE_UNAVAILABLE -> R.string.scanner_profile_unavailable
-            ScanProblem.SCAN_FAILED -> R.string.scanner_failed
-            null -> null
-        }
-        problem?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error) }
-        if (state.problem == ScanProblem.NO_PROFILE || state.problem == ScanProblem.PROFILE_UNAVAILABLE) {
-            OutlinedButton(onClick = onOpenCertificates) { Text(stringResource(R.string.select_certificate)) }
-        }
-    }
-}
-
-/** Rows are separate list items that together look like one card: only the outer corners are rounded. */
-@Composable
-private fun DeviceRow(device: DeviceItem, first: Boolean, last: Boolean, onOpen: () -> Unit) {
-    val corner = 12.dp
-    Card(
-        shape = RoundedCornerShape(
-            topStart = if (first) corner else 0.dp,
-            topEnd = if (first) corner else 0.dp,
-            bottomStart = if (last) corner else 0.dp,
-            bottomEnd = if (last) corner else 0.dp,
-        ),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        if (!first) HorizontalDivider()
-        Text(
-            text = stringResource(R.string.device_ip, device.ip),
-            style = MaterialTheme.typography.titleMedium,
-            color = if (device.connectable) ConnectableBlue else MaterialTheme.colorScheme.onSurface,
-            fontWeight = if (device.connectable) FontWeight.SemiBold else FontWeight.Normal,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(enabled = device.connectable, onClick = onOpen)
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-        )
-    }
-}
-
-@Composable
-private fun ScanStatus(state: ScannerState) {
-    val status = when {
-        state.problem != null -> return
-        state.scanning -> R.string.scanner_scanning
-        state.devices.isEmpty() -> R.string.scanner_nothing_found
-        else -> R.string.scanner_finished
-    }
-    Text(
-        text = stringResource(status),
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth().padding(24.dp),
-    )
 }
 
 @Preview(showBackground = true)
