@@ -1,0 +1,121 @@
+stages:
+  - .pre
+  - pre-build-test
+  - build
+  - upload
+  - deploy
+
+default:
+  tags:
+    - docker-linux
+
+prepare-variables:
+  stage: .pre
+  image: alpine:3.19.4
+  script:
+    - set -a
+    - OWL_TIMESTAMP="$(date +%s)"
+    - OWL_APP_NAME="ip-scanner"
+    - OWL_APP_DIR="app/build/outputs/apk/release/"
+    - OWL_APP_SUFFIX=".apk"
+    - OWL_APP_VERSION="${CI_COMMIT_TAG:-0.0.0+${OWL_TIMESTAMP}-${CI_COMMIT_SHORT_SHA}}"
+    - OWL_ARTIFACTS_NAME="artifacts-${OWL_APP_VERSION}"
+    - OWL_APP_FILE_NAME="${OWL_APP_NAME}-${OWL_APP_VERSION}${OWL_APP_SUFFIX}"
+    - OWL_APP_PATH="${OWL_APP_DIR}${OWL_APP_FILE_NAME}"
+    - OWL_PACKAGE_REGISTRY_API="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${OWL_APP_NAME}/${OWL_APP_VERSION}/"
+    - OWL_PACKAGE_REGISTRY_URL="${CI_PROJECT_URL}/-/packages"
+    - set +a
+    - env | grep '^OWL_' | sort > .env
+  artifacts:
+    reports:
+      dotenv: .env
+    expire_in: 1 day
+
+unit-tests:
+  stage: pre-build-test
+  image: mingc/android-build-box:1.28.0
+  script:
+    - ./gradlew test
+
+app-build:
+  stage: build
+  image: mingc/android-build-box:1.28.0
+  needs:
+    - prepare-variables
+  variables:
+    SIGN_TOOL: "/opt/android-sdk/build-tools/33.0.2/apksigner"
+  script:
+    - |
+      tee /etc/apt/sources.list << 'EOF'
+      deb http://1107-nexus.pd.local:8081/repository/ubuntu jammy main restricted universe multiverse
+      EOF
+    - apt update
+    - apt install s3cmd
+
+    - ./gradlew assembleRelease
+    - cd "${OWL_APP_DIR}"
+    - zipalign -p 4 app-release-unsigned.apk app-release-unsigned-aligned.apk
+    - >-
+      s3cmd
+      --access_key="${S3_ACCESS_KEY}"
+      --secret_key="${S3_SECRET_KEY}"
+      --host="${S3_HOST_NAME}"
+      --host-bucket="${S3_HOST_NAME}"
+      --no-ssl
+      get "s3://${S3_BUCKET_NAME}/ScannerKeyProd.jks"
+    - >-
+      ${SIGN_TOOL} sign
+      --ks ./ScannerKeyProd.jks
+      --ks-pass "pass:${CI_SIGN_KEYSTORE_PASS}"
+      --ks-key-alias "${CI_SIGN_KEY_ALIAS}"
+      --key-pass "pass:${CI_KEY_PASS}"
+      --out app-release-signed.apk
+      app-release-unsigned-aligned.apk
+    - mv app-release-signed.apk "${OWL_APP_FILE_NAME}"
+
+    # Double check that artifacts are available.
+    - cd "${CI_PROJECT_DIR}"
+    - test -s "${OWL_APP_PATH}"
+  artifacts:
+    name: "${OWL_ARTIFACTS_NAME}"
+    paths:
+      - "${OWL_APP_PATH}"
+
+packages-upload:
+  stage: upload
+  image: curlimages/curl:8.8.0
+  rules:
+    - if: "$CI_COMMIT_TAG"
+  script:
+    - >-
+      curl
+      -w \\n
+      --fail-with-body
+      --cacert "${CI_SERVER_TLS_CA_FILE}"
+      --header JOB-TOKEN:"${CI_JOB_TOKEN}"
+      --header PRIVATE-TOKEN:"${DEVELOPER_API_ACCESS_TOKEN}"
+      --upload-file "${OWL_APP_PATH}" "${OWL_PACKAGE_REGISTRY_API}"
+    - echo "Package ${OWL_APP_FILE_NAME} stored in package registry with ${CI_COMMIT_TAG} version -> ${OWL_PACKAGE_REGISTRY_URL}."
+
+apk-release:
+  stage: deploy
+  image: gitlab-org/release-cli:v0.18.0
+  variables:
+    # SSL_CERT_FILE is used by openssl, that is used by release-cli tool.
+    SSL_CERT_FILE: "${CI_SERVER_TLS_CA_FILE}"
+    pattern_SemVer: '/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/'
+  rules:
+    - if: "$CI_COMMIT_TAG =~ $pattern_SemVer"
+      when: manual
+  script:
+    - echo "Creating a release for ${CI_COMMIT_TAG}"
+  release:
+    name: "Release version ${CI_COMMIT_TAG}"
+    description: "${CI_COMMIT_MESSAGE}"
+    tag_name: "${CI_COMMIT_TAG}"
+    ref: "${CI_COMMIT_TAG}"
+    assets:
+      links:
+        - name: "${OWL_APP_FILE_NAME}"
+          url: "${OWL_PACKAGE_REGISTRY_API}${OWL_APP_FILE_NAME}"
+          link_type: package
