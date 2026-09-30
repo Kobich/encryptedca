@@ -24,7 +24,7 @@ internal class NetworkInteractor(
         val permits = Semaphore(PARALLEL_PROBES)
         wifi.hostsToScan().forEach { host ->
             launch {
-                permits.withPermit { deviceRepository.probe(wifi.network, sslContext, host)?.let { send(it) } }
+                permits.withPermit { deviceRepository.probe(wifi.networkHandle, sslContext, host)?.let { send(it) } }
             }
         }
     }.flowOn(Dispatchers.IO)

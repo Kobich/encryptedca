@@ -20,12 +20,12 @@ internal class CertificatesFeatureImpl(
 
     override suspend fun deleteProfile(profileId: String): CertificateProfileError? = interactor.delete(profileId)
 
-    override suspend fun documentName(uri: Uri): String? = interactor.documentName(uri)
+    override suspend fun documentName(uri: String): String? = interactor.documentName(Uri.parse(uri))
 
-    override suspend fun importFromFiles(displayName: String?, p12Uri: Uri, caUri: Uri, password: CharArray): ImportResult =
-        interactor.importFromFiles(displayName, p12Uri, caUri, password)
+    override suspend fun importFromFiles(displayName: String?, p12Uri: String, caUri: String, password: CharArray): ImportResult =
+        interactor.importFromFiles(displayName, Uri.parse(p12Uri), Uri.parse(caUri), password)
 
-    override suspend fun readQrCodes(uris: List<Uri>): List<String> = interactor.readQrCodes(uris)
+    override suspend fun readQrCodes(uris: List<String>): List<String> = interactor.readQrCodes(uris.map(Uri::parse))
 
     override fun newQrCollection(): QrCollection = QrCollectionImpl(interactor)
 }

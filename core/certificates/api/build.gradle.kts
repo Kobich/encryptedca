@@ -1,21 +1,22 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+// Pure Kotlin/JVM: the contract has no Android types.
 plugins {
-    alias(libs.plugins.android.library)
+    `java-library`
+    id("org.jetbrains.kotlin.jvm")
 }
 
-android {
-    namespace = "com.engboost.encryptedca.core.certificates.api"
-    compileSdk {
-        version = release(37)
-    }
-    defaultConfig {
-        minSdk = 31
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = JvmTarget.JVM_17
     }
 }
 
 dependencies {
-    api(libs.kotlinx.coroutines.android)
+    api(libs.kotlinx.coroutines.core)
 }

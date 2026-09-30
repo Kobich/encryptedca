@@ -32,11 +32,11 @@ internal class WifiRepositoryImpl(context: Context) : WifiRepository {
         val callback = object : ConnectivityManager.NetworkCallback() {
             override fun onLinkPropertiesChanged(network: Network, properties: LinkProperties) {
                 val local = properties.toLocalNetwork(network)
-                if (local != null || current?.network == network) publish(local)
+                if (local != null || current?.networkHandle == network.networkHandle) publish(local)
             }
 
             override fun onLost(network: Network) {
-                if (current?.network == network) publish(null)
+                if (current?.networkHandle == network.networkHandle) publish(null)
             }
         }
         val request = NetworkRequest.Builder()
@@ -50,5 +50,5 @@ internal class WifiRepositoryImpl(context: Context) : WifiRepository {
 
     private fun LinkProperties.toLocalNetwork(network: Network): LocalNetwork? =
         linkAddresses.firstOrNull { it.address is Inet4Address }
-            ?.let { LocalNetwork(network, it.address as Inet4Address, it.prefixLength) }
+            ?.let { LocalNetwork(network.networkHandle, it.address as Inet4Address, it.prefixLength) }
 }

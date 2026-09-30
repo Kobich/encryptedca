@@ -21,7 +21,7 @@ android {
 }
 
 dependencies {
-    api(project(":ui:webpanel:api"))
+    implementation(project(":ui:webpanel:api"))
     implementation(project(":feature:webpanel:api"))
 
     implementation(platform(libs.compose.bom))
@@ -32,6 +32,7 @@ dependencies {
     debugImplementation(libs.compose.ui.tooling)
     implementation(libs.activity.compose)
     implementation(libs.lifecycle.runtime.compose)
+    implementation(libs.navigation.runtime)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)

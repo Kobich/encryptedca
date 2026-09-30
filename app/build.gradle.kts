@@ -46,10 +46,12 @@ dependencies {
     implementation(project(":feature:scanner:impl"))
     implementation(project(":feature:webpanel:impl"))
 
-    implementation(project(":ui:certificates:api"))
-    implementation(project(":ui:certificates:impl"))
     implementation(project(":ui:scanner:api"))
     implementation(project(":ui:scanner:impl"))
+    implementation(project(":ui:profiles:api"))
+    implementation(project(":ui:profiles:impl"))
+    implementation(project(":ui:addprofile:api"))
+    implementation(project(":ui:addprofile:impl"))
     implementation(project(":ui:webpanel:api"))
     implementation(project(":ui:webpanel:impl"))
 

@@ -1,6 +1,5 @@
 package com.engboost.encryptedca.feature.webpanel.impl
 
-import android.net.Uri
 import com.engboost.encryptedca.feature.webpanel.api.WebPanelFeature
 import com.engboost.encryptedca.feature.webpanel.api.entity.ClientCertAnswer
 import com.engboost.encryptedca.feature.webpanel.api.entity.DevicePin
@@ -16,5 +15,5 @@ internal class WebPanelFeatureImpl(
     override fun isTrustedServer(device: DevicePin, url: String, certificate: X509Certificate?): Boolean =
         interactor.isTrustedServer(device, url, certificate)
 
-    override suspend fun saveScreenshot(dataUrl: String): Uri? = interactor.saveScreenshot(dataUrl)
+    override suspend fun saveScreenshot(dataUrl: String): String? = interactor.saveScreenshot(dataUrl)?.toString()
 }

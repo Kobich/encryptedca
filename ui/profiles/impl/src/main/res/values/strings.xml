@@ -1,0 +1,34 @@
+<resources>
+    <string name="profiles_title">Certificates</string>
+    <string name="add_profile">Add profile</string>
+    <string name="source_files">Files</string>
+    <string name="source_files_description">A client .p12 and a CA certificate</string>
+    <string name="source_qr_camera">Scan QR codes</string>
+    <string name="source_qr_camera_description">Point the camera at the printed or on-screen codes</string>
+    <string name="source_qr_photos">QR codes from photos</string>
+    <string name="source_qr_photos_description">Screenshots or photos of the codes</string>
+    <string name="no_active_profile">No active profile</string>
+    <string name="active_profile_selected">Active profile is marked below</string>
+    <string name="profiles_loading">Loading…</string>
+    <string name="profiles_empty">No profiles yet. Add a client .p12 and a CA.</string>
+    <string name="profiles_hint">Tap a profile to use it.</string>
+    <string name="unnamed_profile">Unnamed</string>
+    <string name="profile_active">Active</string>
+    <string name="profile_added">Added %1$s</string>
+    <string name="select_profile_title">Switch profile?</string>
+    <string name="select_profile_confirmation">Use “%1$s” for connections?</string>
+    <string name="delete_profile_title">Delete profile?</string>
+    <string name="delete_profile_confirmation">Delete “%1$s” with its key and CA?</string>
+    <string name="delete_profile_accessibility">Delete %1$s</string>
+    <string name="retry">Retry</string>
+    <string name="cancel">Cancel</string>
+    <string name="select">Use</string>
+    <string name="delete">Delete</string>
+    <string name="navigate_back">Back</string>
+    <string name="error_file_unavailable">Can\'t open the file</string>
+    <string name="error_p12_invalid">Can\'t open the .p12: wrong password or unsupported format</string>
+    <string name="error_p12_key_unavailable">No readable private key in the .p12</string>
+    <string name="error_certificate_invalid">Certificate is invalid or expired</string>
+    <string name="error_storage">Couldn\'t save the certificates</string>
+    <string name="error_profile_incomplete">Profile is incomplete. Import it again</string>
+</resources>

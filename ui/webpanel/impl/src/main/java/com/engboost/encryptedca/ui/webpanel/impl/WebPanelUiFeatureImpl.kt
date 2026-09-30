@@ -1,21 +1,14 @@
 package com.engboost.encryptedca.ui.webpanel.impl
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavHostController
 import com.engboost.encryptedca.feature.webpanel.api.entity.DevicePin
 import com.engboost.encryptedca.ui.webpanel.api.WebPanelUiFeature
-import com.engboost.encryptedca.ui.webpanel.impl.webpanel.WebPanelScreen
-import com.engboost.encryptedca.ui.webpanel.impl.webpanel.WebPanelViewModel
-import org.koin.androidx.compose.koinViewModel
-import org.koin.core.parameter.parametersOf
+import com.engboost.encryptedca.ui.webpanel.impl.ui.WebPanelScreen
 
 internal class WebPanelUiFeatureImpl : WebPanelUiFeature {
-
     @Composable
-    override fun Content(host: String, serverFingerprint: String, onClose: () -> Unit) {
-        val viewModel: WebPanelViewModel = koinViewModel { parametersOf(DevicePin(host, serverFingerprint)) }
-        val state by viewModel.state.collectAsStateWithLifecycle()
-        WebPanelScreen(state = state, onAction = viewModel::onAction, onClose = onClose)
+    override fun Content(navController: NavHostController, host: String, serverFingerprint: String) {
+        WebPanelScreen(navController = navController, device = DevicePin(host, serverFingerprint))
     }
 }

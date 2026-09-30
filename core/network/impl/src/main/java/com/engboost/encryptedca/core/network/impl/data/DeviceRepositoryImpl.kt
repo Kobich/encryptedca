@@ -24,8 +24,8 @@ import javax.net.ssl.SSLSocket
 
 internal class DeviceRepositoryImpl : DeviceRepository {
 
-    override fun probe(network: Network, sslContext: SSLContext, host: Inet4Address): FoundDevice? {
-        val socket = network.socketFactory.createSocket()
+    override fun probe(networkHandle: Long, sslContext: SSLContext, host: Inet4Address): FoundDevice? {
+        val socket = Network.fromNetworkHandle(networkHandle).socketFactory.createSocket()
         try {
             socket.connect(InetSocketAddress(host, PORT), CONNECT_TIMEOUT_MS)
         } catch (e: IOException) {

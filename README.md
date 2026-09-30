@@ -4,21 +4,27 @@ Android app that finds hardware devices in the Wi-Fi network the phone is connec
 
 ## Modules
 
-Three top-level folders, one per layer. Every module is built the same way: `api` holds one `<X>Feature` interface and its `entity/` models, `impl` holds `<X>FeatureImpl` with `domain/`, `data/` and `di/`.
+Three top-level folders, one per layer. Every module is an `api` + `impl` pair: `api` holds one `<X>Feature` interface and its `entity/` models, `impl` holds `<X>FeatureImpl` and everything behind it. An `impl` is seen only by `:app`, which binds it through Koin.
 
 | Folder | Layer | `api` | `impl` |
 | --- | --- | --- | --- |
 | `core/` | Data shared by features | `ProfileStorageFeature` (stored profiles), `NetworkFeature` (Wi-Fi, subnet scan, `SSLContext`) | Keystore, encrypted CA, profile index, ConnectivityManager, sockets |
-| `feature/` | A feature's logic, no Compose | `<X>Feature` interface and `entity/` models | `<X>FeatureImpl`, `domain/` (interactor, repository interfaces), `data/` (`<Y>RepositoryImpl`), `di/` |
-| `ui/` | Presentation | `<X>UiFeature { @Composable fun Content(...) }`, route and `navigateTo<X>()` | `<X>UiFeatureImpl`, one folder per screen, `di/` |
+| `feature/` | A feature's logic, no UI | `<X>Feature` and `entity/` models | `<X>FeatureImpl`, `domain/`, `data/`, `di/` |
+| `ui/` | One screen | `<X>UiFeature { @Composable fun Content(navController, ...) }` and `<X>NavRoute` | `<X>UiFeatureImpl`, `domain/`, `ui/`, `di/` |
 
-Dependencies go one way: `ui/<x>/impl` → `feature/<x>/api` → `core/*/api`. An `impl` is seen only by `:app`, which starts Koin with every module's `di` and hosts the navigation: it takes each `<X>UiFeature` from Koin and calls `Content`. Features don't depend on each other.
+`core/*/api` and `feature/*/api` are plain Kotlin/JVM modules: no Android types in contracts (content URIs are strings, a Wi-Fi network is its `networkHandle`).
 
-| Feature | What it does |
+Dependencies go one way: `ui/<x>/impl` → `feature/<y>/api` → `core/*/api`. A screen navigates to another through that screen's `ui/<z>/api` (its `<Z>NavRoute`). Features don't depend on each other. `:app` starts Koin with every module's `di`, takes each `<X>UiFeature` from Koin and registers its `<X>NavRoute` in the `NavHost`.
+
+| Module | What it does |
 | --- | --- |
-| `certificates` | Certificate profiles: list, selection, deletion, adding from files, camera QR or photo QR |
-| `scanner` | Devices in the current Wi-Fi network and whether they pass the mTLS check |
-| `webpanel` | The device's web panel in a WebView with the profile's client certificate |
+| `feature/certificates` | Certificate profiles: list, selection, deletion, import from files or QR codes |
+| `feature/scanner` | Devices in the current Wi-Fi network and whether they pass the mTLS check |
+| `feature/webpanel` | What the device's web panel may do: client certificate, server check, screenshots |
+| `ui/scanner` | Screen: devices on the Wi-Fi network |
+| `ui/profiles` | Screen: stored profiles, select, delete, pick how to add one |
+| `ui/addprofile` | Screen: add a profile from files, camera QR or photo QR |
+| `ui/webpanel` | Screen: the device's web panel in a WebView |
 
 ### Inside `core/<x>/impl` and `feature/<x>/impl`
 
@@ -32,17 +38,18 @@ Dependencies go one way: `ui/<x>/impl` → `feature/<x>/api` → `core/*/api`. A
 
 ### Inside `ui/<x>/impl`
 
-One folder per screen, e.g. `list/`, `add/`:
-
-| File | Contents |
+| File or folder | Contents |
 | --- | --- |
-| `<Screen>Screen.kt` | A whole screen. It takes `state`, one `onAction` and navigation callbacks |
-| `<Screen>ViewModel.kt` | Turns actions into state; talks only to `<X>Feature` from `feature/<x>/api` |
-| `<Screen>State.kt` | What the screen shows |
-| `<Screen>Action.kt` | Everything the user can do on the screen |
-| `components/` | Parts of the screen's UI, never whole screens |
+| `<X>UiFeatureImpl.kt` | Implements `<X>UiFeature`: shows `<X>Screen` |
+| `domain/<X>Interactor.kt` | The screen's logic on top of `feature/*/api`; `domain/entity/` holds its state |
+| `ui/<X>Screen.kt` | Gets the ViewModel from Koin, builds `<X>Callbacks`, navigates |
+| `ui/<X>ScreenView.kt` | Stateless UI: draws `<X>ViewState`, reports through `<X>Callbacks` |
+| `ui/<X>ViewModel.kt` | Maps the interactor's state to `<X>ViewState` |
+| `ui/entity/` | `<X>ViewState` (what the screen shows) and `<X>Callbacks` (everything the user can do) |
+| `ui/components/` | Parts of the screen's UI |
+| `di/<X>UiFeatureModule.kt` | Koin: `<X>UiFeature`, interactor, ViewModel |
 
-A screen folder may hold several screens of one flow: `add/` has `AddProfileFormScreen`, `QrCameraScreen` and `QrPhotosScreen`, and `AddProfileScreen` picks which one to show.
+A screen with several states may have more views next to `<X>ScreenView`: `ui/addprofile` has `AddProfileFormView`, `QrCameraView` and `QrPhotosView`, and `AddProfileScreenView` picks one by the view state.
 
 Comments: only a short header at the top of a file whose purpose isn't obvious from the code.
 
