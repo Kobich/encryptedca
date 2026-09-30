@@ -5,10 +5,10 @@ package com.engboost.encryptedca.ui.scanner.impl.scanner
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.engboost.encryptedca.core.network.api.scan.FoundDevice
-import com.engboost.encryptedca.feature.scanner.api.ScannerInteractor
-import com.engboost.encryptedca.feature.scanner.api.model.ScanProblem
-import com.engboost.encryptedca.feature.scanner.api.model.ScanUpdate
+import com.engboost.encryptedca.core.network.api.entity.FoundDevice
+import com.engboost.encryptedca.feature.scanner.api.ScannerFeature
+import com.engboost.encryptedca.feature.scanner.api.entity.ScanProblem
+import com.engboost.encryptedca.feature.scanner.api.entity.ScanUpdate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 internal class ScannerViewModel(
-    private val interactor: ScannerInteractor,
+    private val feature: ScannerFeature,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ScannerState())
@@ -28,10 +28,10 @@ internal class ScannerViewModel(
 
     init {
         viewModelScope.launch {
-            combine(interactor.networkToScan(), rescans) { wifi, _ -> wifi }
+            combine(feature.networkToScan(), rescans) { wifi, _ -> wifi }
                 .collectLatest { wifi ->
                     val localIp = wifi?.address?.hostAddress
-                    interactor.scan(wifi).collect { update ->
+                    feature.scan(wifi).collect { update ->
                         if (update is ScanUpdate.Failed) Log.w(TAG, "Scan failed", update.cause)
                         _state.update { it.after(update, localIp) }
                     }

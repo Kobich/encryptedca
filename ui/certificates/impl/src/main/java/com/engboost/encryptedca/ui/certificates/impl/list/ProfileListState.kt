@@ -1,7 +1,7 @@
 package com.engboost.encryptedca.ui.certificates.impl.list
 
 import androidx.compose.runtime.Immutable
-import com.engboost.encryptedca.core.certificates.api.model.CertificateProfileError
+import com.engboost.encryptedca.core.certificates.api.entity.CertificateProfileError
 
 internal data class ProfileItem(val id: String, val name: String?, val createdAt: Long)
 

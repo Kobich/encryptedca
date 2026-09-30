@@ -4,7 +4,7 @@ package com.engboost.encryptedca
 
 import android.app.Application
 import android.util.Log
-import com.engboost.encryptedca.core.certificates.api.CertificateProfileRepository
+import com.engboost.encryptedca.core.certificates.api.ProfileStorageFeature
 import com.engboost.encryptedca.di.appModules
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,7 +23,7 @@ class EncryptedCaApplication : Application() {
             androidContext(this@EncryptedCaApplication)
             modules(appModules)
         }
-        val profiles: CertificateProfileRepository = get()
+        val profiles: ProfileStorageFeature = get()
         appScope.launch {
             try {
                 profiles.refresh()

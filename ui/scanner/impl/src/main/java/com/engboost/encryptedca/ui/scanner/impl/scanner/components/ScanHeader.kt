@@ -12,7 +12,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.engboost.encryptedca.feature.scanner.api.model.ScanProblem
+import com.engboost.encryptedca.feature.scanner.api.entity.ScanProblem
 import com.engboost.encryptedca.ui.scanner.impl.R
 import com.engboost.encryptedca.ui.scanner.impl.scanner.ScannerState
 

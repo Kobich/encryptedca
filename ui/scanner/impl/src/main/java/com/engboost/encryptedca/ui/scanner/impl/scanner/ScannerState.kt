@@ -1,7 +1,7 @@
 package com.engboost.encryptedca.ui.scanner.impl.scanner
 
 import androidx.compose.runtime.Immutable
-import com.engboost.encryptedca.feature.scanner.api.model.ScanProblem
+import com.engboost.encryptedca.feature.scanner.api.entity.ScanProblem
 
 internal data class DeviceItem(val ip: String, val serverFingerprint: String?) {
     val connectable: Boolean get() = serverFingerprint != null

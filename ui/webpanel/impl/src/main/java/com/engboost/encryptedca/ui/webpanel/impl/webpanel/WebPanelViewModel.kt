@@ -4,9 +4,10 @@ package com.engboost.encryptedca.ui.webpanel.impl.webpanel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.engboost.encryptedca.core.certificates.api.model.ClientCredentials
-import com.engboost.encryptedca.feature.webpanel.api.WebPanelInteractor
-import com.engboost.encryptedca.feature.webpanel.api.model.ClientCertAnswer
+import com.engboost.encryptedca.core.certificates.api.entity.ClientCredentials
+import com.engboost.encryptedca.feature.webpanel.api.WebPanelFeature
+import com.engboost.encryptedca.feature.webpanel.api.entity.ClientCertAnswer
+import com.engboost.encryptedca.feature.webpanel.api.entity.DevicePin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,11 +16,12 @@ import kotlinx.coroutines.launch
 import java.security.cert.X509Certificate
 
 internal class WebPanelViewModel(
-    private val interactor: WebPanelInteractor,
+    private val feature: WebPanelFeature,
+    private val device: DevicePin,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
-        WebPanelState(host = interactor.host, startUrl = "https://${interactor.host}:443/"),
+        WebPanelState(host = device.host, startUrl = "https://${device.host}:443/"),
     )
     val state: StateFlow<WebPanelState> = _state.asStateFlow()
 
@@ -46,7 +48,7 @@ internal class WebPanelViewModel(
     private fun answerClientCert(requestHost: String, answer: (ClientCredentials?) -> Unit) {
         val attempt = loadAttempt
         viewModelScope.launch {
-            when (val result = interactor.answerClientCert(requestHost)) {
+            when (val result = feature.answerClientCert(device, requestHost)) {
                 is ClientCertAnswer.Granted -> answer(result.credentials)
                 ClientCertAnswer.OtherHost -> answer(null)
                 ClientCertAnswer.NoProfile -> {
@@ -62,14 +64,14 @@ internal class WebPanelViewModel(
     }
 
     private fun checkServer(url: String, certificate: X509Certificate?): Boolean {
-        val trusted = interactor.isTrustedServer(url, certificate)
+        val trusted = feature.isTrustedServer(device, url, certificate)
         if (!trusted) reportProblem(loadAttempt, WebPanelProblem.UNTRUSTED_SERVER)
         return trusted
     }
 
     private fun saveScreenshot(url: String) {
         viewModelScope.launch {
-            val saved = interactor.saveScreenshot(url)
+            val saved = feature.saveScreenshot(url)
             val id = nextMessageId++
             val message = if (saved != null) ImageMessage.Saved(id, saved.toString()) else ImageMessage.Failed(id)
             _state.update { it.copy(imageMessage = message) }

@@ -4,21 +4,31 @@ Android app that finds hardware devices in the Wi-Fi network the phone is connec
 
 ## Modules
 
-Three top-level folders, one per layer. Every module in them is either `api` (what other modules may use) or `impl` (the hidden implementation).
+Three top-level folders, one per layer. Every module is built the same way: `api` holds one `<X>Feature` interface and its `entity/` models, `impl` holds `<X>FeatureImpl` with `domain/`, `data/` and `di/`.
 
 | Folder | Layer | `api` | `impl` |
 | --- | --- | --- | --- |
-| `core/` | Data shared by features | Interfaces and models: `CertificateProfileRepository`, `WifiMonitor`, `DeviceScanner`, `SslContextFactory` | Keystore, encrypted CA, profile index, Wi-Fi, subnet scan, TLS |
-| `feature/` | A feature's logic, no Compose | Interactor interfaces and models, one interactor per screen | `interactor/` implementations, `data/` sources, `di/` |
-| `ui/` | Presentation | Route, `navigateTo<X>()` and `interface <X>Ui { @Composable fun Content(...) }` | Screens, ViewModels, `di/` |
+| `core/` | Data shared by features | `ProfileStorageFeature` (stored profiles), `NetworkFeature` (Wi-Fi, subnet scan, `SSLContext`) | Keystore, encrypted CA, profile index, ConnectivityManager, sockets |
+| `feature/` | A feature's logic, no Compose | `<X>Feature` interface and `entity/` models | `<X>FeatureImpl`, `domain/` (interactor, repository interfaces), `data/` (`<Y>RepositoryImpl`), `di/` |
+| `ui/` | Presentation | `<X>UiFeature { @Composable fun Content(...) }`, route and `navigateTo<X>()` | `<X>UiFeatureImpl`, one folder per screen, `di/` |
 
-Dependencies go one way: `ui/<x>/impl` → `feature/<x>/api` → `core/*/api`. An `impl` is seen only by `:app`, which starts Koin with every module's `di` and hosts the navigation: it takes each `<X>Ui` from Koin and calls `Content`. Features don't depend on each other.
+Dependencies go one way: `ui/<x>/impl` → `feature/<x>/api` → `core/*/api`. An `impl` is seen only by `:app`, which starts Koin with every module's `di` and hosts the navigation: it takes each `<X>UiFeature` from Koin and calls `Content`. Features don't depend on each other.
 
 | Feature | What it does |
 | --- | --- |
 | `certificates` | Certificate profiles: list, selection, deletion, adding from files, camera QR or photo QR |
 | `scanner` | Devices in the current Wi-Fi network and whether they pass the mTLS check |
 | `webpanel` | The device's web panel in a WebView with the profile's client certificate |
+
+### Inside `core/<x>/impl` and `feature/<x>/impl`
+
+| File or folder | Contents |
+| --- | --- |
+| `<X>FeatureImpl.kt` | Implements `<X>Feature` from `api` by delegating to the interactor |
+| `domain/<X>Interactor.kt` | The feature's logic, a plain class |
+| `domain/<Y>Repository.kt` | Interface for data the interactor reads or writes |
+| `data/<Y>RepositoryImpl.kt` | Its implementation on the platform: Keystore, files, SharedPreferences, ConnectivityManager, sockets, ContentResolver, ML Kit, MediaStore |
+| `di/<X>FeatureModule.kt` | Koin: repositories, interactor, `<X>Feature` |
 
 ### Inside `ui/<x>/impl`
 
@@ -27,7 +37,7 @@ One folder per screen, e.g. `list/`, `add/`:
 | File | Contents |
 | --- | --- |
 | `<Screen>Screen.kt` | A whole screen. It takes `state`, one `onAction` and navigation callbacks |
-| `<Screen>ViewModel.kt` | Turns actions into state; talks only to its interactor from `feature/<x>/api` |
+| `<Screen>ViewModel.kt` | Turns actions into state; talks only to `<X>Feature` from `feature/<x>/api` |
 | `<Screen>State.kt` | What the screen shows |
 | `<Screen>Action.kt` | Everything the user can do on the screen |
 | `components/` | Parts of the screen's UI, never whole screens |
@@ -43,7 +53,7 @@ Comments: only a short header at the top of a file whose purpose isn't obvious f
 - The profile index (ids, names, creation time, active profile) is in SharedPreferences `certificate_profiles` and excluded from backup, since Keystore keys are never restored.
 - Passwords are never stored. `importProfile` takes ownership of the password `CharArray` and clears it.
 
-`CertificateProfileRepository` is the only public entry point; the storages behind it are internal. It runs calls one at a time, changes can't be cancelled halfway, and the index is published as a `StateFlow`. `loadActiveCredentials()` returns the selected profile's Keystore key handle, its certificate chain and CA; `:core:network` builds the `SSLContext` from them and never sees Keystore aliases. Import order is: read PKCS#12 and CA → save the client key → encrypt CA → register the profile; a failure is rolled back step by step.
+`ProfileStorageFeature` is the only public entry point; `ProfileStorageInteractor` and the repositories behind it are internal. It runs calls one at a time, changes can't be cancelled halfway, and the index is published as a `StateFlow`. `loadActiveCredentials()` returns the selected profile's Keystore key handle, its certificate chain and CA; `:core:network` builds the `SSLContext` from them and never sees Keystore aliases. Import order is: read PKCS#12 and CA → save the client key → encrypt CA → register the profile; a failure is rolled back step by step.
 
 An empty password opens containers exported without one: Android's PKCS#12 provider expects a single NUL character for them. The selected CA may be a legacy self-signed certificate without `BasicConstraints CA:TRUE`.
 

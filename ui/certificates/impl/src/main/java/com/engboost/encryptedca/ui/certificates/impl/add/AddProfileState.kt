@@ -2,8 +2,7 @@ package com.engboost.encryptedca.ui.certificates.impl.add
 
 import android.net.Uri
 import androidx.compose.runtime.Immutable
-import com.engboost.encryptedca.core.certificates.api.model.CertificateProfileError
-import com.engboost.encryptedca.feature.certificates.api.model.ProfileSource
+import com.engboost.encryptedca.core.certificates.api.entity.CertificateProfileError
 
 @Immutable
 internal data class PickedDocument(val uri: Uri, val name: String?)

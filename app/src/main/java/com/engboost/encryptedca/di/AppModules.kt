@@ -1,21 +1,21 @@
 package com.engboost.encryptedca.di
 
-import com.engboost.encryptedca.core.certificates.impl.di.coreCertificatesModule
-import com.engboost.encryptedca.core.network.impl.di.coreNetworkModule
-import com.engboost.encryptedca.feature.certificates.impl.di.certificatesModule
-import com.engboost.encryptedca.feature.scanner.impl.di.scannerModule
-import com.engboost.encryptedca.feature.webpanel.impl.di.webPanelModule
-import com.engboost.encryptedca.ui.certificates.impl.di.certificatesUiModule
-import com.engboost.encryptedca.ui.scanner.impl.di.scannerUiModule
-import com.engboost.encryptedca.ui.webpanel.impl.di.webPanelUiModule
+import com.engboost.encryptedca.core.certificates.impl.di.profileStorageFeatureModule
+import com.engboost.encryptedca.core.network.impl.di.networkFeatureModule
+import com.engboost.encryptedca.feature.certificates.impl.di.certificatesFeatureModule
+import com.engboost.encryptedca.feature.scanner.impl.di.scannerFeatureModule
+import com.engboost.encryptedca.feature.webpanel.impl.di.webPanelFeatureModule
+import com.engboost.encryptedca.ui.certificates.impl.di.certificatesUiFeatureModule
+import com.engboost.encryptedca.ui.scanner.impl.di.scannerUiFeatureModule
+import com.engboost.encryptedca.ui.webpanel.impl.di.webPanelUiFeatureModule
 
 val appModules = listOf(
-    coreCertificatesModule,
-    coreNetworkModule,
-    certificatesModule,
-    certificatesUiModule,
-    scannerModule,
-    scannerUiModule,
-    webPanelModule,
-    webPanelUiModule,
+    profileStorageFeatureModule,
+    networkFeatureModule,
+    certificatesFeatureModule,
+    certificatesUiFeatureModule,
+    scannerFeatureModule,
+    scannerUiFeatureModule,
+    webPanelFeatureModule,
+    webPanelUiFeatureModule,
 )

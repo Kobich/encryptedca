@@ -5,9 +5,9 @@ package com.engboost.encryptedca.ui.certificates.impl.list
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.engboost.encryptedca.core.certificates.api.model.CertificateProfileError
-import com.engboost.encryptedca.core.certificates.api.model.ProfileSummary
-import com.engboost.encryptedca.feature.certificates.api.ProfileListInteractor
+import com.engboost.encryptedca.core.certificates.api.entity.CertificateProfileError
+import com.engboost.encryptedca.core.certificates.api.entity.ProfileSummary
+import com.engboost.encryptedca.feature.certificates.api.CertificatesFeature
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 internal class ProfileListViewModel(
-    private val interactor: ProfileListInteractor,
+    private val feature: CertificatesFeature,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ProfileListState())
@@ -26,7 +26,7 @@ internal class ProfileListViewModel(
     private var runningChanges = 0
 
     init {
-        interactor.profiles
+        feature.profiles
             .onEach { index ->
                 _state.update {
                     it.copy(
@@ -53,7 +53,7 @@ internal class ProfileListViewModel(
     private fun loadList() {
         if (_state.value.listLoad != ListLoad.Loaded) _state.update { it.copy(listLoad = ListLoad.Loading) }
         viewModelScope.launch {
-            val error = interactor.refresh() ?: return@launch
+            val error = feature.refreshProfiles() ?: return@launch
             _state.update { if (it.listLoad == ListLoad.Loaded) it else it.copy(listLoad = ListLoad.Failed(error)) }
         }
     }
@@ -68,8 +68,8 @@ internal class ProfileListViewModel(
         dismissConfirmation()
         val profileId = confirmation.profile.id
         when (confirmation) {
-            is PendingConfirmation.Select -> runChange { interactor.select(profileId) }
-            is PendingConfirmation.Delete -> runChange { interactor.delete(profileId) }
+            is PendingConfirmation.Select -> runChange { feature.selectProfile(profileId) }
+            is PendingConfirmation.Delete -> runChange { feature.deleteProfile(profileId) }
         }
     }
 

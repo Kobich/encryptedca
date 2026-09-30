@@ -1,6 +1,6 @@
 package com.engboost.encryptedca.ui.webpanel.impl.webpanel
 
-import com.engboost.encryptedca.core.certificates.api.model.ClientCredentials
+import com.engboost.encryptedca.core.certificates.api.entity.ClientCredentials
 import java.security.cert.X509Certificate
 
 internal sealed interface WebPanelAction {

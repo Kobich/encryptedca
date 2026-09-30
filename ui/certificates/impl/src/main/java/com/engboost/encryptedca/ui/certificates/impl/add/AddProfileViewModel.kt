@@ -1,5 +1,5 @@
 // The add-profile screen. The source (files, camera or photos) is picked on the list and doesn't change.
-// Picked documents are remembered and survive process death; QR codes live only in AddProfileInteractor.
+// Picked documents are remembered and survive process death; QR codes live only in the QrCollection.
 package com.engboost.encryptedca.ui.certificates.impl.add
 
 import android.net.Uri
@@ -8,10 +8,9 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.engboost.encryptedca.core.certificates.api.wipe
-import com.engboost.encryptedca.feature.certificates.api.AddProfileInteractor
-import com.engboost.encryptedca.feature.certificates.api.model.ImportResult
-import com.engboost.encryptedca.feature.certificates.api.model.ProfileSource
-import com.engboost.encryptedca.feature.certificates.api.model.QrCollectResult
+import com.engboost.encryptedca.feature.certificates.api.CertificatesFeature
+import com.engboost.encryptedca.feature.certificates.api.entity.ImportResult
+import com.engboost.encryptedca.feature.certificates.api.entity.QrCollectResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,13 +18,15 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 internal class AddProfileViewModel(
-    private val interactor: AddProfileInteractor,
+    private val feature: CertificatesFeature,
     private val savedState: SavedStateHandle,
     source: ProfileSource,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AddProfileState(source))
     val state: StateFlow<AddProfileState> = _state.asStateFlow()
+
+    private val qrCollection = feature.newQrCollection()
 
     init {
         when (source) {
@@ -48,7 +49,7 @@ internal class AddProfileViewModel(
         }
     }
 
-    override fun onCleared() = interactor.clearQr()
+    override fun onCleared() = qrCollection.clear()
 
     private fun selectP12(uri: Uri) = selectDocument(KEY_P12, uri) { state, document -> state.copy(p12 = document) }
 
@@ -58,27 +59,27 @@ internal class AddProfileViewModel(
         savedState[key] = uri
         _state.update { show(it, PickedDocument(uri, name = null)) }
         viewModelScope.launch {
-            val name = interactor.documentName(uri)
+            val name = feature.documentName(uri)
             if (savedState.get<Uri>(key) == uri) _state.update { show(it, PickedDocument(uri, name)) }
         }
     }
 
     private fun startQrCollecting() {
-        interactor.clearQr()
+        qrCollection.clear()
         _state.update { it.copy(qr = collecting()) }
     }
 
     private fun addQrCodes(texts: List<String>) {
         if (_state.value.qr !is QrStatus.Collecting) return
-        val status = interactor.addQrCodes(texts).toStatus() ?: return
+        val status = qrCollection.add(texts).toStatus() ?: return
         _state.update { it.copy(qr = status) }
     }
 
     private fun readQrPhotos(uris: List<Uri>) {
         viewModelScope.launch {
-            val texts = interactor.readQrCodes(uris)
+            val texts = feature.readQrCodes(uris)
             if (_state.value.qr !is QrStatus.Collecting) return@launch
-            val status = interactor.addQrCodes(texts).toStatus() ?: collecting(photosWithoutNewCodes = true)
+            val status = qrCollection.add(texts).toStatus() ?: collecting(photosWithoutNewCodes = true)
             _state.update { it.copy(qr = status) }
         }
     }
@@ -95,9 +96,9 @@ internal class AddProfileViewModel(
         _state.update { it.copy(status = ImportStatus.Importing) }
         viewModelScope.launch {
             val result = if (p12Uri != null && caUri != null) {
-                interactor.importFromFiles(name, p12Uri, caUri, password)
+                feature.importFromFiles(name, p12Uri, caUri, password)
             } else {
-                interactor.importFromQr(name, password)
+                qrCollection.importProfile(name, password)
             }
             if (result is ImportResult.Failed) Log.w(TAG, "Import failed: ${result.error}", result.cause)
             _state.update { it.copy(status = result.toStatus()) }
@@ -105,7 +106,7 @@ internal class AddProfileViewModel(
     }
 
     private fun collecting(photosWithoutNewCodes: Boolean = false) =
-        QrStatus.Collecting(interactor.qrReceived, interactor.qrTotal, photosWithoutNewCodes)
+        QrStatus.Collecting(qrCollection.received, qrCollection.total, photosWithoutNewCodes)
 
     private fun QrCollectResult.toStatus(): QrStatus? = when (this) {
         QrCollectResult.NothingNew -> null

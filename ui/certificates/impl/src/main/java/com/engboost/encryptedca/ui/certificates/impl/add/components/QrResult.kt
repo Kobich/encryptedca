@@ -8,9 +8,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.engboost.encryptedca.feature.certificates.api.model.ProfileSource
 import com.engboost.encryptedca.ui.certificates.impl.R
 import com.engboost.encryptedca.ui.certificates.impl.add.AddProfileState
+import com.engboost.encryptedca.ui.certificates.impl.add.ProfileSource
 import com.engboost.encryptedca.ui.certificates.impl.add.QrStatus
 
 @Composable

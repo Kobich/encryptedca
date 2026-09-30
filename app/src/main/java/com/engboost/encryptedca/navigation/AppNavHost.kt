@@ -5,21 +5,21 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.engboost.encryptedca.ui.certificates.api.CertificatesRoute
-import com.engboost.encryptedca.ui.certificates.api.CertificatesUi
+import com.engboost.encryptedca.ui.certificates.api.CertificatesUiFeature
 import com.engboost.encryptedca.ui.certificates.api.navigateToCertificates
 import com.engboost.encryptedca.ui.scanner.api.ScannerRoute
-import com.engboost.encryptedca.ui.scanner.api.ScannerUi
+import com.engboost.encryptedca.ui.scanner.api.ScannerUiFeature
 import com.engboost.encryptedca.ui.webpanel.api.WebPanelRoute
-import com.engboost.encryptedca.ui.webpanel.api.WebPanelUi
+import com.engboost.encryptedca.ui.webpanel.api.WebPanelUiFeature
 import com.engboost.encryptedca.ui.webpanel.api.navigateToWebPanel
 import org.koin.compose.koinInject
 
 @Composable
 fun AppNavHost() {
     val navController = rememberNavController()
-    val scannerUi: ScannerUi = koinInject()
-    val certificatesUi: CertificatesUi = koinInject()
-    val webPanelUi: WebPanelUi = koinInject()
+    val scannerUi: ScannerUiFeature = koinInject()
+    val certificatesUi: CertificatesUiFeature = koinInject()
+    val webPanelUi: WebPanelUiFeature = koinInject()
 
     NavHost(navController = navController, startDestination = ScannerRoute.ROUTE) {
         composable(ScannerRoute.ROUTE) {

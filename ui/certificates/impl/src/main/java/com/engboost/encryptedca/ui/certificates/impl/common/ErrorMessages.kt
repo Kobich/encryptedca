@@ -1,7 +1,7 @@
 package com.engboost.encryptedca.ui.certificates.impl.common
 
 import androidx.annotation.StringRes
-import com.engboost.encryptedca.core.certificates.api.model.CertificateProfileError
+import com.engboost.encryptedca.core.certificates.api.entity.CertificateProfileError
 import com.engboost.encryptedca.ui.certificates.impl.R
 
 @StringRes
