@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.update
 internal class ProfilesInteractor(
     private val certificatesFeature: CertificatesFeature,
 ) {
-    private val index: Flow<ProfileIndex?> = certificatesFeature.profiles.onStart { emit(null) }
+    private val index: Flow<ProfileIndex?> = certificatesFeature.profiles.onStart<ProfileIndex?> { emit(null) }
     private val loadError = MutableStateFlow<CertificateProfileError?>(null)
     private val runningChanges = MutableStateFlow(0)
     private val changeError = MutableStateFlow<CertificateProfileError?>(null)

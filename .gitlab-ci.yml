@@ -9,6 +9,14 @@ default:
   tags:
     - docker-linux
 
+# Trusts the corporate CA (HTTPS goes through a TLS-inspecting proxy) and installs the SDK the image lacks.
+.android-setup: &android-setup
+  - >-
+    if [ -f "${CI_SERVER_TLS_CA_FILE:-}" ]; then
+    keytool -importcert -noprompt -cacerts -storepass changeit -alias corporate-ca -file "${CI_SERVER_TLS_CA_FILE}";
+    fi
+  - yes | sdkmanager --install "platforms;android-37" "build-tools;36.0.0" > /dev/null
+
 prepare-variables:
   stage: .pre
   image: alpine:3.19.4
@@ -34,6 +42,7 @@ prepare-variables:
 unit-tests:
   stage: pre-build-test
   image: mingc/android-build-box:1.28.0
+  before_script: *android-setup
   script:
     - ./gradlew test
 
@@ -44,6 +53,7 @@ app-build:
     - prepare-variables
   variables:
     SIGN_TOOL: "/opt/android-sdk/build-tools/33.0.2/apksigner"
+  before_script: *android-setup
   script:
     - |
       tee /etc/apt/sources.list << 'EOF'
