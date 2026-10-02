@@ -71,7 +71,8 @@ app-build:
     - ./gradlew assembleRelease
     - cd "${OWL_APP_DIR}"
     - ls -la
-    - ${BUILD_TOOLS}/zipalign -p 4 app-release-unsigned.apk app-release-unsigned-aligned.apk
+    # app-release-unsigned.apk, or app-release.apk if the release build type has a signingConfig.
+    - ${BUILD_TOOLS}/zipalign -f -p 4 "$(ls app-release*.apk | head -1)" app-release-unsigned-aligned.apk
     - >-
       s3cmd
       --access_key="${S3_ACCESS_KEY}"

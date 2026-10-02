@@ -31,7 +31,6 @@ dependencies {
     implementation(libs.compose.material3)
     implementation(libs.compose.material.icons.core)
     debugImplementation(libs.compose.ui.tooling)
-    implementation(libs.activity.compose)
     implementation(libs.lifecycle.runtime.compose)
     implementation(libs.navigation.runtime)
     implementation(libs.kotlinx.coroutines.android)

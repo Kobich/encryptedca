@@ -57,7 +57,7 @@ Comments: only a short header at the top of a file whose purpose isn't obvious f
 
 - The `.p12` is not kept. Its private key and chain go into Android Keystore under `mtls_client_<profileId>`, not extractable. RSA keys also allow raw private-key operations: Conscrypt needs them for RSA-PSS in TLS 1.3.
 - The CA is not kept as PEM. Its DER is encrypted with AES-256-GCM (Keystore key `mtls_ca_storage_key`) and stored as `[IV length][IV][ciphertext]` in `noBackupFilesDir/<profileId>.ca.enc`.
-- The profile index (ids, names, creation time, active profile) is in SharedPreferences `certificate_profiles` and excluded from backup, since Keystore keys are never restored.
+- The profile index (ids, names, creation time, active profile) is in SharedPreferences `certificate_profiles` and not backed up: the app disables backup (`allowBackup="false"`), since Keystore keys are never restored.
 - Passwords are never stored. `importProfile` takes ownership of the password `CharArray` and clears it.
 
 `ProfileStorageFeature` is the only public entry point; `ProfileStorageInteractor` and the repositories behind it are internal. It runs calls one at a time, changes can't be cancelled halfway, and the index is published as a `StateFlow`. `loadActiveCredentials()` returns the selected profile's Keystore key handle, its certificate chain and CA; `:core:network` builds the `SSLContext` from them and never sees Keystore aliases. Import order is: read PKCS#12 and CA → save the client key → encrypt CA → register the profile; a failure is rolled back step by step.

@@ -18,4 +18,5 @@ build/
 
 # Machine-specific
 local.properties
+analytics.settings
 .DS_Store
