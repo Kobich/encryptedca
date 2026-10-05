@@ -106,12 +106,14 @@ internal class ProfileStorageInteractor(
         val ca = caCertificates.read(profileId)
         ca.requireCurrentlyValid()
         val key = keys.read(profileId)
-        return ClientCredentials(
-            profileId = profileId,
-            privateKey = key.privateKey,
-            certificateChain = key.certificateChain.filterIsInstance<X509Certificate>(),
-            trustAnchor = ca,
-        )
+        return rethrowAs(PROFILE_INCOMPLETE, "Stored client key doesn't match its certificate") {
+            ClientCredentials(
+                profileId = profileId,
+                privateKey = key.privateKey,
+                certificateChain = key.certificateChain.filterIsInstance<X509Certificate>(),
+                trustAnchor = ca,
+            )
+        }
     }
 
     private suspend fun <T> changeProfiles(change: () -> T): T = withContext(Dispatchers.IO + NonCancellable) {

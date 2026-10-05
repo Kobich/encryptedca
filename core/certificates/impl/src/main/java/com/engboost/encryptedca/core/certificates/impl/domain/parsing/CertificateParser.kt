@@ -13,6 +13,8 @@ import java.security.KeyStore
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
 
+internal const val X509_CERTIFICATE_TYPE = "X.509"
+
 internal object CertificateParser {
     private const val KEY_UNAVAILABLE = "PKCS#12 opened, but the private key is unavailable"
 
@@ -34,7 +36,7 @@ internal object CertificateParser {
 
     fun readCaPem(encoded: ByteArray): X509Certificate {
         val certificate = rethrowAs(CERTIFICATE_INVALID, "CA PEM could not be parsed") {
-            CertificateFactory.getInstance("X.509").generateCertificate(encoded.inputStream())
+            CertificateFactory.getInstance(X509_CERTIFICATE_TYPE).generateCertificate(encoded.inputStream())
         }
         return (certificate as? X509Certificate ?: throw notX509()).also { it.requireCurrentlyValid() }
     }

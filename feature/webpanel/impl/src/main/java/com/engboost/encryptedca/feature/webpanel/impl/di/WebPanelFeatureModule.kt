@@ -9,6 +9,8 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 
 val webPanelFeatureModule = module {
+    // factory: the repository and the interactor have no state, and only the single WebPanelFeatureImpl
+    // takes them, so each is created once anyway.
     factory<ScreenshotRepository> { ScreenshotRepositoryImpl(androidContext().contentResolver) }
     factory { WebPanelInteractor(profileStorage = get(), screenshotRepository = get()) }
     single<WebPanelFeature> { WebPanelFeatureImpl(interactor = get()) }

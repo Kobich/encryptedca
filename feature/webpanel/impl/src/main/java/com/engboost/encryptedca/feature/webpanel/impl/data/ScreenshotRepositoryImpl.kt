@@ -14,7 +14,6 @@ import android.webkit.MimeTypeMap
 import com.engboost.encryptedca.feature.webpanel.impl.domain.ScreenshotRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.IOException
 
 internal class ScreenshotRepositoryImpl(private val resolver: ContentResolver) : ScreenshotRepository {
 
@@ -34,15 +33,19 @@ internal class ScreenshotRepositoryImpl(private val resolver: ContentResolver) :
         } ?: return@withContext null
 
         try {
-            val output = resolver.openOutputStream(uri) ?: throw IOException("No output stream for $uri")
-            output.use { it.write(image.bytes) }
-            resolver.update(uri, ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }, null, null)
-            uri
+            val output = resolver.openOutputStream(uri)
+            if (output != null) {
+                output.use { it.write(image.bytes) }
+                resolver.update(uri, ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }, null, null)
+                return@withContext uri
+            }
+            Log.w(TAG, "No output stream for $uri")
         } catch (e: Exception) {
             Log.w(TAG, "Could not write the image", e)
-            runCatching { resolver.delete(uri, null, null) }
-            null
         }
+        runCatching { resolver.delete(uri, null, null) }
+            .onFailure { Log.w(TAG, "Could not remove the unfinished image", it) }
+        null
     }
 
     private class DecodedImage(val mimeType: String, val extension: String, val bytes: ByteArray)

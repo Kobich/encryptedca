@@ -7,11 +7,14 @@ import com.engboost.encryptedca.core.network.api.toUInt
 import java.net.Inet4Address
 import java.net.InetAddress
 
-private const val WIDEST_SCANNED_PREFIX = 24
+private const val WIDEST_SCANNED_PREFIX = 24 // at most 254 hosts per scan
+private const val IPV4_BITS = 32 // an IPv4 address is a 32-bit number
+private const val IPV4_BYTES = 4 // and is written as 4 bytes
+private const val BITS_PER_BYTE = 8
 
 internal fun LocalNetwork.hostsToScan(): List<Inet4Address> {
     val prefix = maxOf(prefixLength, WIDEST_SCANNED_PREFIX)
-    val subnetSize = 1u shl (32 - prefix)
+    val subnetSize = 1u shl (IPV4_BITS - prefix) // 1u shl n = 2^n: 256 addresses for /24
     val ownAddress = address.toUInt()
     val networkAddress = ownAddress and (subnetSize - 1u).inv()
     val broadcastAddress = networkAddress + subnetSize - 1u
@@ -20,5 +23,9 @@ internal fun LocalNetwork.hostsToScan(): List<Inet4Address> {
         .map { it.toInet4Address() }
 }
 
-private fun UInt.toInet4Address(): Inet4Address =
-    InetAddress.getByAddress(ByteArray(4) { i -> (this shr (24 - 8 * i)).toByte() }) as Inet4Address
+private fun UInt.toInet4Address(): Inet4Address {
+    val bytes = ByteArray(IPV4_BYTES) { i ->
+        (this shr (IPV4_BITS - BITS_PER_BYTE * (i + 1))).toByte() // shifts 24, 16, 8, 0: highest byte first
+    }
+    return InetAddress.getByAddress(bytes) as Inet4Address
+}

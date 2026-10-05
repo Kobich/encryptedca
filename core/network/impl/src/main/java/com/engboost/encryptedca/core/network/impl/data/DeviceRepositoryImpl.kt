@@ -24,18 +24,21 @@ import javax.net.ssl.SSLSocket
 
 internal class DeviceRepositoryImpl : DeviceRepository {
 
+    // The socket is closed on every path, including unexpected exceptions.
+    // The calls here block, and cancelling the coroutine doesn't interrupt them; they end by timeout.
     override fun probe(networkHandle: Long, sslContext: SSLContext, host: Inet4Address): FoundDevice? {
         val socket = Network.fromNetworkHandle(networkHandle).socketFactory.createSocket()
-        try {
-            socket.connect(InetSocketAddress(host, PORT), CONNECT_TIMEOUT_MS)
-        } catch (e: IOException) {
-            socket.close()
-            val alive = e is ConnectException || ping(host)
-            return if (alive) FoundDevice(host, DeviceStatus.PORT_UNREACHABLE) else null
+        return socket.use {
+            try {
+                socket.connect(InetSocketAddress(host, PORT), CONNECT_TIMEOUT_MS)
+            } catch (e: IOException) {
+                val alive = e is ConnectException || ping(host)
+                return if (alive) FoundDevice(host, DeviceStatus.PORT_UNREACHABLE) else null
+            }
+            val fingerprint = handshake(sslContext, socket, host)
+            val status = if (fingerprint != null) DeviceStatus.TRUSTED else DeviceStatus.HANDSHAKE_FAILED
+            FoundDevice(host, status, fingerprint)
         }
-        val fingerprint = handshake(sslContext, socket, host)
-        val status = if (fingerprint != null) DeviceStatus.TRUSTED else DeviceStatus.HANDSHAKE_FAILED
-        return FoundDevice(host, status, fingerprint)
     }
 
     private fun handshake(sslContext: SSLContext, socket: Socket, host: Inet4Address): String? =
@@ -49,8 +52,6 @@ internal class DeviceRepositoryImpl : DeviceRepository {
         } catch (e: IOException) {
             Log.i(TAG, "TLS check failed for ${host.hostAddress}", e)
             null
-        } finally {
-            socket.close()
         }
 
     private fun ping(host: Inet4Address): Boolean {
