@@ -50,6 +50,10 @@ unit-tests:
   before_script: *android-setup
   script:
     - ./gradlew test
+  artifacts:
+    when: always
+    reports:
+      junit: "**/build/test-results/test*UnitTest/*.xml"
 
 app-build:
   stage: build

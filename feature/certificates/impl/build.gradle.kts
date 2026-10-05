@@ -22,4 +22,6 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.koin.android)
     implementation(libs.mlkit.barcode.scanning)
+
+    testImplementation(libs.junit)
 }

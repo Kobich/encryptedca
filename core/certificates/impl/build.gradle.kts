@@ -20,4 +20,7 @@ dependencies {
     implementation(project(":core:certificates:api"))
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.koin.android)
+
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

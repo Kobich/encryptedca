@@ -20,4 +20,6 @@ dependencies {
     implementation(project(":core:network:api"))
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.koin.android)
+
+    testImplementation(libs.junit)
 }
