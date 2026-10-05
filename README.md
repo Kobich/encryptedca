@@ -1,79 +1,175 @@
-# EncryptedCA
+# EncryptedCA (ip-scanner)
 
-Android app that finds hardware devices in the Wi-Fi network the phone is connected to and checks them over mutual TLS. The device is always the TLS client: it authenticates with the key from a `.p12` and trusts a server only if its certificate chains to the profile's `ca.pem`.
+Android-приложение для работы с устройствами по mutual TLS. Оно находит устройства в Wi-Fi сети, к которой подключён телефон, проверяет каждое по mTLS выбранным сертификатом и открывает веб-панель проверенного устройства.
 
-## Modules
+Телефон всегда выступает TLS-клиентом. Он предъявляет ключ из `.p12` и доверяет серверу, только если его сертификат подписан CA из того же профиля.
 
-Three top-level folders, one per layer. Every module is an `api` + `impl` pair: `api` holds one `<X>Feature` interface and its `entity/` models, `impl` holds `<X>FeatureImpl` and everything behind it. An `impl` is seen only by `:app`, which binds it through Koin.
+## Коротко
 
-| Folder | Layer | `api` | `impl` |
+| | |
+| --- | --- |
+| Android | минимум 12 (API 31), target API 37 |
+| Сборка | Gradle 9.4.1, AGP 9.2.1 (встроенный Kotlin, KGP 2.3.21), JDK 17+ |
+| UI | Jetpack Compose, Material 3, Navigation Compose |
+| DI | Koin |
+| Камера и QR | CameraX + ML Kit (модель встроена в APK, Google Play services не нужны) |
+| Разрешения | `INTERNET`, `ACCESS_NETWORK_STATE`, `CAMERA` (запрашивается только при сканировании QR) |
+| Бэкап | выключен (`allowBackup="false"`) |
+
+## Сборка
+
+```shell
+./gradlew assembleDebug      # отладочная сборка
+./gradlew assembleRelease    # релиз; подписывается в CI, см. ниже
+```
+
+Нужны Android SDK Platform 37 (`platforms;android-37.0`) и build-tools 36+.
+
+## Как пользоваться
+
+1. **Сертификаты** (замок справа вверху на экране устройств) → `+` → выбрать источник:
+   - **Файлы** — клиентский `.p12` и сертификат CA;
+   - **QR с камеры** — навести камеру на набор QR-кодов профиля;
+   - **QR с фото** — выбрать скриншоты или фото распечатки.
+2. Ввести пароль от `.p12` и импортировать. Имя профиля необязательно.
+3. Нажать на профиль, чтобы сделать его активным. Активный профиль один.
+4. На экране устройств скан запускается сам и перезапускается при смене сети или профиля. Устройство, прошедшее mTLS-проверку, выделено синим. Нажатие открывает его веб-панель.
+
+## Профиль сертификатов
+
+Профиль состоит из двух частей:
+
+- **Клиентский `.p12`** (PKCS#12): закрытый ключ и цепочка сертификатов клиента.
+  - Ключ RSA или EC.
+  - Поддерживается и legacy-формат (ключ 3DES, сертификат RC2, MAC SHA-1), такой даёт `openssl pkcs12 -export -legacy`.
+  - Если в контейнере несколько ключей, берётся первый по порядку.
+  - `.p12` без пароля открывается с пустым паролем.
+- **Сертификат CA**: PEM или DER. Подходит и старый самоподписанный CA без `BasicConstraints CA:TRUE`.
+
+Срок действия клиентского сертификата и CA проверяется при импорте. Срок CA проверяется ещё и при каждом использовании профиля. Просроченный профиль не импортируется и не используется.
+
+### Ошибки импорта
+
+| `CertificateProfileError` | Что значит |
+| --- | --- |
+| `FILE_UNAVAILABLE` | файл не открылся |
+| `PKCS12_PASSWORD_OR_CORRUPT` | неверный пароль или повреждённый/неподдерживаемый `.p12` |
+| `PKCS12_KEY_UNAVAILABLE` | `.p12` открылся, но закрытого ключа в нём нет |
+| `CERTIFICATE_INVALID` | сертификат не X.509, просрочен или ещё не действует |
+| `STORAGE_FAILED` | не удалось записать в Keystore или на диск |
+| `PROFILE_INCOMPLETE` | от сохранённого профиля чего-то не хватает, нужно импортировать заново |
+
+## Как хранятся сертификаты
+
+**Форматы и имена ниже менять нельзя:** на телефонах уже лежат профили в этом виде. При изменении нужна миграция.
+
+| Что | Где и как |
+| --- | --- |
+| Закрытый ключ и цепочка клиента | Android Keystore, алиас `mtls_client_<profileId>`. Ключ из Keystore не извлекается. У RSA-ключей разрешены операции без паддинга: Conscrypt нужны такие для RSA-PSS в TLS 1.3. |
+| CA | Файл `noBackupFilesDir/<profileId>.ca.enc`: DER сертификата, зашифрованный AES-256-GCM. Формат: `[1 байт: длина IV][IV][шифротекст с тегом]`. Ключ шифрования — Keystore, алиас `mtls_ca_storage_key`. |
+| Список профилей | SharedPreferences `certificate_profiles`: `profile_ids` (set), `display_name_<id>`, `created_at_<id>`, `active_profile_id` |
+| Пароль `.p12` и сам `.p12` | **не хранятся.** После импорта массивы с паролем и байтами `.p12` затираются. |
+
+`profileId` — случайный UUID.
+
+Импорт идёт в порядке «прочитать `.p12` и CA → сохранить ключ → зашифровать CA → добавить в список». При ошибке на любом шаге уже сделанные шаги откатываются. Все операции с профилями выполняются строго по одной и не прерываются посередине.
+
+Бэкап выключен: ключи из Keystore не переносятся на другое устройство, и восстановленный без них список профилей был бы битым.
+
+## Импорт из QR-кодов
+
+Формат описан в [docs/qr-profile-format.md](docs/qr-profile-format.md). Коротко: `.p12` и CA склеиваются, к ним добавляется SHA-256, всё кодируется в Base64 и режется на куски. Каждый кусок — отдельный QR с текстом `ECA1:<id>:<номер>/<N>:<кусок>`. Пароля в кодах нет, его вводят в приложении.
+
+Коды читаются в любом порядке, по несколько за кадр или фото. Фото можно добирать в несколько заходов. Собранный профиль хранится только в памяти, пока открыт экран добавления.
+
+Генератор кодов для своих `.p12` и CA:
+
+```shell
+pip install "qrcode[pil]"
+python tools/qr/make_profile_qr.py client.p12 ca.pem --out qr-out
+```
+
+Он сохраняет PNG по одному коду и общий лист `profile_sheet.png`. Опция `--chunk` задаёт размер куска (по умолчанию 900), `--columns` — число кодов в ряду (по умолчанию 3).
+
+## Скан сети
+
+- Скан идёт по Wi-Fi сети из `ConnectivityManager`, даже если в ней нет интернета. Сокеты привязаны к Wi-Fi, поэтому трафик не уходит в мобильную сеть.
+- Проверяются все адреса подсети, кроме своего, адреса сети и broadcast. Подсеть шире /24 сокращается до своей /24.
+- По каждому адресу: TCP на порт **443** (таймаут 1 с), затем TLS-рукопожатие с активным профилем (таймаут 10 с — RSA-4096 на медленном устройстве считается долго). Одновременно проверяется до 64 адресов.
+- Результат по хосту:
+  - **рукопожатие прошло** — устройство доверенное, запоминается SHA-256 его сертификата;
+  - **порт открыт, рукопожатие не прошло** — устройство есть, но не доверенное;
+  - **порт недоступен** — хост показывается, если соединение отклонено или он отвечает на `ping`. Ping идёт отдельным процессом по маршруту по умолчанию и может пропустить хост. На доверие он не влияет.
+- Устройства адресуются по IP, поэтому сертификат сервера проверяется только по CA профиля, без сверки имени хоста.
+
+## Веб-панель устройства
+
+- Открывается `https://<ip>:443/` во WebView.
+- WebView не знает CA профиля. Страница грузится, только если устройство предъявило ровно тот сертификат, SHA-256 которого запомнил скан, и только на этом IP. Если сертификат сменился, нужно пересканировать сеть.
+- Клиентский сертификат отдаётся только хосту устройства. Ссылки на другие хосты открываются во внешнем браузере. Перед загрузкой сбрасывается запомненный WebView выбор сертификата, чтобы смена профиля сразу действовала.
+- Включены JavaScript и смешанный контент (`MIXED_CONTENT_ALWAYS_ALLOW`): панели устройств грузят ресурсы и по http, и по https.
+- Скриншоты, которые панель отдаёт как скачивание `data:image/...;base64`, сохраняются в DCIM через MediaStore. Разрешение на память не требуется.
+
+## Модули
+
+Три папки верхнего уровня, по одной на слой. Каждый модуль — пара `api` + `impl`:
+- `api` — один интерфейс `<X>Feature` и модели в `entity/`;
+- `impl` — `<X>FeatureImpl` и всё, что за ним.
+
+`impl` видит только `:app`, который связывает всё через Koin.
+
+| Папка | Слой | `api` | `impl` |
 | --- | --- | --- | --- |
-| `core/` | Data shared by features | `ProfileStorageFeature` (stored profiles), `NetworkFeature` (Wi-Fi, subnet scan, `SSLContext`) | Keystore, encrypted CA, profile index, ConnectivityManager, sockets |
-| `feature/` | A feature's logic, no UI | `<X>Feature` and `entity/` models | `<X>FeatureImpl`, `domain/`, `data/`, `di/` |
-| `ui/` | One screen | `<X>UiFeature { @Composable fun Content(navController, ...) }` and `<X>NavRoute` | `<X>UiFeatureImpl`, `domain/`, `ui/`, `di/` |
+| `core/` | данные, общие для фич | `ProfileStorageFeature` (профили), `NetworkFeature` (Wi-Fi, скан, `SSLContext`) | Keystore, шифрование CA, список профилей, ConnectivityManager, сокеты |
+| `feature/` | логика фичи, без UI | `<X>Feature` и `entity/` | `<X>FeatureImpl`, `domain/`, `data/`, `di/` |
+| `ui/` | один экран | `<X>UiFeature { @Composable fun Content(navController, ...) }` и `<X>NavRoute` | `<X>UiFeatureImpl`, `domain/`, `ui/`, `di/` |
 
-`core/*/api` and `feature/*/api` are plain Kotlin/JVM modules: no Android types in contracts (content URIs are strings, a Wi-Fi network is its `networkHandle`).
+`core/*/api` и `feature/*/api` — чистые Kotlin/JVM модули, без Android-типов: URI передаются строками, Wi-Fi сеть — своим `networkHandle`.
 
-Dependencies go one way: `ui/<x>/impl` → `feature/<y>/api` → `core/*/api`. A screen navigates to another through that screen's `ui/<z>/api` (its `<Z>NavRoute`). Features don't depend on each other. `:app` starts Koin with every module's `di`, takes each `<X>UiFeature` from Koin and registers its `<X>NavRoute` in the `NavHost`.
+Зависимости идут в одну сторону: `ui/<x>/impl` → `feature/<y>/api` → `core/*/api`. Фичи друг от друга не зависят. Экран переходит на другой экран через его `ui/<z>/api` (`<Z>NavRoute`). `:app` запускает Koin с модулями из всех `di/` и регистрирует маршруты в `NavHost`.
 
-| Module | What it does |
+| Модуль | Что делает |
 | --- | --- |
-| `feature/certificates` | Certificate profiles: list, selection, deletion, import from files or QR codes |
-| `feature/scanner` | Devices in the current Wi-Fi network and whether they pass the mTLS check |
-| `feature/webpanel` | What the device's web panel may do: client certificate, server check, screenshots |
-| `ui/scanner` | Screen: devices on the Wi-Fi network |
-| `ui/profiles` | Screen: stored profiles, select, delete, pick how to add one |
-| `ui/addprofile` | Screen: add a profile from files, camera QR or photo QR |
-| `ui/webpanel` | Screen: the device's web panel in a WebView |
+| `core/certificates` | хранение профилей: Keystore, зашифрованный CA, список |
+| `core/network` | Wi-Fi, перебор подсети, mTLS-проверка хоста, `SSLContext` |
+| `feature/certificates` | список, выбор, удаление, импорт из файлов и QR |
+| `feature/scanner` | скан текущей сети активным профилем |
+| `feature/webpanel` | что можно веб-панели: клиентский сертификат, проверка сервера, скриншоты |
+| `ui/scanner` | экран устройств |
+| `ui/profiles` | экран профилей |
+| `ui/addprofile` | экран добавления профиля (файлы, камера, фото) |
+| `ui/webpanel` | экран веб-панели |
 
-### Inside `core/<x>/impl` and `feature/<x>/impl`
+Внутри `ui/<x>/impl`:
 
-| File or folder | Contents |
+| Файл | Что внутри |
 | --- | --- |
-| `<X>FeatureImpl.kt` | Implements `<X>Feature` from `api` by delegating to the interactor |
-| `domain/<X>Interactor.kt` | The feature's logic, a plain class |
-| `domain/<Y>Repository.kt` | Interface for data the interactor reads or writes |
-| `data/<Y>RepositoryImpl.kt` | Its implementation on the platform: Keystore, files, SharedPreferences, ConnectivityManager, sockets, ContentResolver, ML Kit, MediaStore |
-| `di/<X>FeatureModule.kt` | Koin: repositories, interactor, `<X>Feature` |
+| `ui/<X>Screen.kt` | берёт ViewModel из Koin, собирает `<X>Callbacks`, навигация |
+| `ui/<X>ScreenView.kt` | UI без состояния: рисует `<X>ViewState`, сообщает о действиях через `<X>Callbacks` |
+| `ui/<X>ViewModel.kt` | превращает состояние интерактора в `<X>ViewState` |
+| `domain/<X>Interactor.kt` | логика экрана поверх `feature/*/api` |
 
-### Inside `ui/<x>/impl`
+Комментарии в коде на английском: короткая шапка в начале файла, только там, где назначение неочевидно.
 
-| File or folder | Contents |
-| --- | --- |
-| `<X>UiFeatureImpl.kt` | Implements `<X>UiFeature`: shows `<X>Screen` |
-| `domain/<X>Interactor.kt` | The screen's logic on top of `feature/*/api`; `domain/entity/` holds its state |
-| `ui/<X>Screen.kt` | Gets the ViewModel from Koin, builds `<X>Callbacks`, navigates |
-| `ui/<X>ScreenView.kt` | Stateless UI: draws `<X>ViewState`, reports through `<X>Callbacks` |
-| `ui/<X>ViewModel.kt` | Maps the interactor's state to `<X>ViewState` |
-| `ui/entity/` | `<X>ViewState` (what the screen shows) and `<X>Callbacks` (everything the user can do) |
-| `ui/components/` | Parts of the screen's UI |
-| `di/<X>UiFeatureModule.kt` | Koin: `<X>UiFeature`, interactor, ViewModel |
+## CI (GitLab)
 
-A screen with several states may have more views next to `<X>ScreenView`: `ui/addprofile` has `AddProfileFormView`, `QrCameraView` and `QrPhotosView`, and `AddProfileScreenView` picks one by the view state.
+| Джоба | Когда | Что делает |
+| --- | --- | --- |
+| `prepare-variables` | всегда | версия и имена артефактов |
+| `unit-tests` | всегда | `./gradlew test` |
+| `app-build` | всегда | `assembleRelease`, `zipalign`, подпись ключом `ScannerKeyProd.jks` из S3 |
+| `packages-upload` | на тег | APK в Package Registry (пакет `ip-scanner`) |
+| `apk-release` | на semver-тег, вручную | GitLab Release со ссылкой на APK |
 
-Comments: only a short header at the top of a file whose purpose isn't obvious from the code.
+Образ `mingc/android-build-box:1.28.0` не знает Android 17, поэтому перед сборкой CI:
+- добавляет корпоративный CA (`CI_SERVER_TLS_CA_FILE`) в доверенные Java, иначе Gradle и `sdkmanager` не проходят через прокси;
+- обновляет `sdkmanager`;
+- ставит `platforms;android-37.0` и `build-tools;36.0.0`.
 
-## Certificate storage
+Если раннер не достучался до dl.google.com, джоба падает на этом шаге — помогает Retry.
 
-- The `.p12` is not kept. Its private key and chain go into Android Keystore under `mtls_client_<profileId>`, not extractable. RSA keys also allow raw private-key operations: Conscrypt needs them for RSA-PSS in TLS 1.3.
-- The CA is not kept as PEM. Its DER is encrypted with AES-256-GCM (Keystore key `mtls_ca_storage_key`) and stored as `[IV length][IV][ciphertext]` in `noBackupFilesDir/<profileId>.ca.enc`.
-- The profile index (ids, names, creation time, active profile) is in SharedPreferences `certificate_profiles` and not backed up: the app disables backup (`allowBackup="false"`), since Keystore keys are never restored.
-- Passwords are never stored. `importProfile` takes ownership of the password `CharArray` and clears it.
+Переменные CI/CD: `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_HOST_NAME`, `S3_BUCKET_NAME`, `CI_SIGN_KEYSTORE_PASS`, `CI_SIGN_KEY_ALIAS`, `CI_KEY_PASS`, `DEVELOPER_API_ACCESS_TOKEN`.
 
-`ProfileStorageFeature` is the only public entry point; `ProfileStorageInteractor` and the repositories behind it are internal. It runs calls one at a time, changes can't be cancelled halfway, and the index is published as a `StateFlow`. `loadActiveCredentials()` returns the selected profile's Keystore key handle, its certificate chain and CA; `:core:network` builds the `SSLContext` from them and never sees Keystore aliases. Import order is: read PKCS#12 and CA → save the client key → encrypt CA → register the profile; a failure is rolled back step by step.
+## Тестовые сертификаты
 
-An empty password opens containers exported without one: Android's PKCS#12 provider expects a single NUL character for them. The selected CA may be a legacy self-signed certificate without `BasicConstraints CA:TRUE`.
-
-Sample certificates for manual import are in `sample-certificates/` (password `1234`).
-
-## Device scan
-
-The scan uses the Wi-Fi network from `ConnectivityManager` (a network without internet access counts too) and binds sockets to it, so traffic doesn't leak to mobile data. For every host of the subnet (narrowed to /24 if wider) it opens a TCP connection to port 443 and, if the port is open, performs a TLS handshake with the active profile. A completed handshake marks the device as trusted. A host whose port can't be reached is still listed when the connection is refused or it answers `ping`. Ping runs as a separate process and follows the default route, not the Wi-Fi network, so it may miss hosts when Wi-Fi isn't the default; it never affects whether a device is trusted. Devices are addressed by IP, so the server certificate is checked only against the profile's CA.
-
-## Device web panel
-
-Tapping a device that passed the check opens `https://<ip>:443/` in a WebView. The scan remembers the SHA-256 of the certificate the device presented over mTLS; WebView doesn't know the profile's CA, reports the device as an SSL error, and the page proceeds only with that exact certificate on that IP. The client key is given only to the device's host, links to other hosts open in the browser, and WebView's remembered client-certificate choice is cleared first, so a profile change takes effect. Screenshots the panel offers as `data:image/...` downloads are saved to DCIM.
-
-## Import from QR codes
-
-Adding a profile always starts from the `+` on the profile list, which offers three sources: two files, QR codes with the camera, or QR codes from photos (screenshots or pictures of the printed sheet). Each source has its own screen; closing the camera or the photos screen goes back to the list. The codes can be read in any order, several per camera frame or photo, and photos can be added over several picks until every code is read. The camera uses CameraX with the ML Kit QR model bundled in the APK, so Google Play services aren't required. The code format is described in [docs/qr-profile-format.md](docs/qr-profile-format.md), and `tools/qr/make_profile_qr.py` generates codes from any `.p12` and CA; the `.p12` password is never in the codes and is entered as usual. The collected profile stays in memory only.
+В `sample-certificates/` лежат тестовая пара (`client.p12` + `ca.pem`, пароль `1234`, RSA-4096, legacy PKCS#12) и она же в виде QR-кодов в `qr/`. Это только для ручной проверки, в продакшене их не использовать.
